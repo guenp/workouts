@@ -1,4 +1,4 @@
-# CLAUDE.md — Health Companion maintenance guide
+# CLAUDE.md — Workouts maintenance guide
 
 Mobile-first, dependency-free health tracker (daily plan, health/gut logging, workout builder with Garmin FIT export, trends) with optional Google Drive sync. No framework, no build step required for development — plain HTML/CSS/JS served statically (GitHub Pages) or bundled into one file for Claude artifacts.
 
@@ -97,6 +97,10 @@ FIT encoding (13-fit.js) mirrors real Garmin Connect exports, including undocume
 6. An import file containing only exercise photos was rejected as invalid.
 7. Player hotkeys (Space/arrows) hijacked typing in inputs while a workout ran.
 8. `openWoAdd` (the workout "+ Add to plan" buttons) was referenced but never implemented — the buttons threw a ReferenceError. Implemented in 11-workouts.js: add to today, a picked date, or the weekly template.
+
+## GitHub setup
+
+The project is named **Workouts** and lives at github.com/guenp/workouts, deployed to GitHub Pages at https://guen.pw/workouts/ (custom domain on the user's Pages site). Deployment is via GitHub Actions: `.github/workflows/pages.yml` uploads the repo root as the Pages artifact on every push to main — no build step, the modular source is served directly. `dist/` is gitignored (it's a local build output for artifacts/paste-data use only). If the Pages URL ever changes, update the OAuth "Authorized JavaScript origins" in Google Cloud Console or Drive sync will stop connecting.
 
 ## Building & testing
 
