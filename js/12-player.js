@@ -1,0 +1,102 @@
+function beginWorkout(){
+  const w = curWo(); if(!w || !w.exercises.length) return;
+  const steps = expandWorkout(w).map(st=> st.restSecs
+    ? {name:"Rest", secs:st.restSecs, rest:true}
+    : {e:st.e, name:st.e.n, secs: st.e.mode==="time" ? st.e.secs : Math.max(10, st.e.reps*3),
+       reps: st.e.mode==="time" ? null : st.e.reps, set:st.set, sets:st.sets, rest:false});
+  while(steps.length && steps[steps.length-1].rest) steps.pop();
+  PLAYER = {w, steps, i:0, remain:steps[0].secs, paused:false, done:false,
+            total: steps.reduce((t,st)=>t+st.secs,0)};
+  PLAYER.timer = setInterval(playerTick, 1000);
+  render();
+}
+function playerPct(){
+  const done = PLAYER.steps.slice(0, PLAYER.i).reduce((t,st)=>t+st.secs,0) + (PLAYER.steps[PLAYER.i].secs - PLAYER.remain);
+  return Math.min(100, done / PLAYER.total * 100);
+}
+function playerTick(){
+  if(!PLAYER || PLAYER.paused || PLAYER.done) return;
+  PLAYER.remain--;
+  if(PLAYER.remain <= 0){ playerStep(1); return; }
+  const t = document.getElementById("plTime"); if(t) t.textContent = fmtSecs(PLAYER.remain);
+  const b = document.getElementById("plBar"); if(b) b.style.width = playerPct()+"%";
+}
+function playerStep(n){
+  const j = PLAYER.i + n;
+  if(j < 0) return;
+  if(j >= PLAYER.steps.length){ PLAYER.done = true; clearInterval(PLAYER.timer); render(); return; }
+  PLAYER.i = j; PLAYER.remain = PLAYER.steps[j].secs;
+  render();
+}
+function playerToggle(){ if(PLAYER && !PLAYER.done){ PLAYER.paused = !PLAYER.paused; render(); } }
+function playerBgTap(ev){ if(ev.target.closest && ev.target.closest("button, a")) return; playerToggle(); }
+document.addEventListener("keydown", ev=>{
+  if(!PLAYER || PLAYER.done || tab!=="workouts") return;
+  if(ev.target.closest && ev.target.closest("input, textarea, select")) return;
+  if(ev.code === "Space"){ ev.preventDefault(); playerToggle(); }
+  else if(ev.key === "ArrowLeft") playerStep(-1);
+  else if(ev.key === "ArrowRight") playerStep(1);
+});
+function endPlayer(){ if(PLAYER) clearInterval(PLAYER.timer); PLAYER = null; render(); }
+function playerLogToday(){
+  const w = PLAYER.w;
+  materializeDay(new Date());
+  const day = state.days[todayKey()];
+  const it = day.items.find(x=>x.workoutId===w.id && x.status==="planned");
+  if(it) it.status = "done";
+  else day.items.push({id:uid(), type:"move", title:w.name, detail:woSummary(w), workoutId:w.id, status:"done", actual:""});
+  save(); endPlayer(); setTab("today");
+}
+function playerMediaHTML(st){
+  const paused = PLAYER.paused ? `<div class="pl-paused">Paused</div>` : "";
+  if(st.rest) return `<div class="pl-media"><span style="font-family:'Bricolage Grotesque';font-size:26px;color:var(--muted)">Rest</span>${paused}</div>`;
+  const e = st.e;
+  if(state.exImages[e.n]) return `<div class="pl-media"><img src="${state.exImages[e.n]}">${paused}</div>`;
+  if(FEDB[e.n]) return `<div class="pl-media">${fedbAnimHTML(e.n,"")}${paused}</div>`;
+  const m = EXMEDIA[e.n];
+  if(m && m !== "none" && m !== "err" && m.vid)
+    return `<div class="pl-media"><video src="${m.vid}" poster="${m.img}" autoplay loop muted playsinline></video>${paused}</div>`;
+  if(!m && GC[e.n]){
+    loadExMedia(e.n).then(()=>{ if(PLAYER && !PLAYER.done && PLAYER.steps[PLAYER.i] === st) render(); });
+    return `<div class="pl-media">${paused}</div>`;
+  }
+  return `<div class="pl-media"><span class="exicon" style="width:64px;height:64px">${EXCAT[e.c].icon}</span>${paused}</div>`;
+}
+function playerHTML(){
+  const p = PLAYER, st = p.steps[p.i];
+  if(p.done) return `
+    <div class="top"><h1>Nice work!</h1></div>
+    <div class="card" style="padding:22px;text-align:center">
+      <div style="font-size:40px">🎉</div>
+      <h3 style="font-family:'Bricolage Grotesque';margin:8px 0 2px">${esc(p.w.name)} complete</h3>
+      <p class="sub">≈${Math.round(p.total/60)} min · ${p.steps.filter(x=>!x.rest).length} sets</p>
+      <button class="primary" style="margin-top:10px" onclick="playerLogToday()">Log to today</button>
+      <button class="sheet-btn" style="margin-top:8px" onclick="endPlayer()"><span>${ICON.back}</span> Back to workout</button>
+    </div>`;
+  const next = p.steps[p.i+1];
+  const desc = st.rest ? "" : exDesc(st.name);
+  const svgPrev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg>';
+  const svgNext = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6l6 6-6 6"/></svg>';
+  const svgPlay = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>';
+  const svgPause = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg>';
+  return `
+  <div onclick="playerBgTap(event)" style="min-height:75vh">
+  <div class="top"><div style="display:flex;align-items:center;gap:6px;min-width:0">
+    <button class="daynav" onclick="endPlayer()">✕</button>
+    <h1 style="font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.w.name)}</h1>
+  </div><span class="tag">${p.i+1}/${p.steps.length}</span></div>
+  <div class="pl-bar"><i id="plBar" style="width:${playerPct()}%"></i></div>
+  ${playerMediaHTML(st)}
+  <h2 style="font-family:'Bricolage Grotesque';font-size:22px;margin:2px 0">${esc(st.name)}</h2>
+  <p class="sub">${st.rest ? (next ? "Next: "+esc(next.name) : "") : (st.sets>1 ? `Set ${st.set} of ${st.sets} · ` : "") + (st.reps ? st.reps+" reps" : fmtSecs(st.secs)+"s")}</p>
+  <div class="pl-time" id="plTime">${fmtSecs(p.remain)}</div>
+  <div class="pl-ctl">
+    <button onclick="playerStep(-1)" aria-label="Previous">${svgPrev}</button>
+    <button class="main" onclick="playerToggle()" aria-label="${p.paused?'Resume':'Pause'}">${p.paused ? svgPlay : svgPause}</button>
+    <button onclick="playerStep(1)" aria-label="Next">${svgNext}</button>
+  </div>
+  ${p.paused ? `<p class="exnote" style="text-align:center;margin-top:8px">Tap anywhere or press space to resume</p>` : ""}
+  ${desc ? `<p class="exinstr" style="margin-top:14px">${esc(desc)}</p>` : ""}
+  ${!st.rest && next ? `<p class="exnote" style="margin-top:10px">Next: ${esc(next.name)}</p>` : ""}
+  </div>`;
+}

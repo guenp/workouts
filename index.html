@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Workouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<div id="app" class="wrap"></div>
+
+<nav id="nav"></nav>
+<div class="backdrop" id="backdrop" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet"></div>
+<input type="file" id="upIn" accept=".json,application/json" style="position:fixed;left:-9999px;width:1px;height:1px" onchange="uploadData(this)">
+<input type="file" id="exImgIn" accept="image/*" style="position:fixed;left:-9999px;width:1px;height:1px" onchange="uploadExImage(this)">
+
+<!-- Classic scripts sharing one global scope; load order matters only for
+     top-level statements — see CLAUDE.md. build.sh inlines these into a
+     single-file dist/ build. -->
+<script src="js/01-core.js"></script>
+<script src="js/02-icons.js"></script>
+<script src="js/03-ui.js"></script>
+<script src="js/04-drive.js"></script>
+<script src="js/05-today.js"></script>
+<script src="js/06-plan.js"></script>
+<script src="js/07-gut.js"></script>
+<script src="js/08-data-tools.js"></script>
+<script src="js/09-trends.js"></script>
+<script src="js/10-exercise-data.js"></script>
+<script src="js/11-workouts.js"></script>
+<script src="js/12-player.js"></script>
+<script src="js/13-fit.js"></script>
+<script src="js/14-main.js"></script>
+</body>
+</html>
