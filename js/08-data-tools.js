@@ -34,10 +34,6 @@ function openDataMenu(){
       <button class="sheet-btn" onclick="chooseSyncFolder()"><span>${ICON.folder}</span> Choose a custom folder…</button>
       ${syncFolderPref() ? `<button class="sheet-btn" onclick="resetSyncFolder()"><span>${ICON.back}</span> Use default folder (workouts)</button>` : ""}
     ` : `<p class="sub">Hidden app data is invisible in Drive and private to this app. Choose "Drive folder" to sync to a visible health-tracker.json instead${getMode()==="drive"?" (you'll be asked to reconnect)":""}.</p>`}
-    <div style="margin:10px 0 4px"><label class="fl">Google Picker API key (optional)</label>
-      <input class="field" type="text" placeholder="AIza…" value="${esc(VIS.API_KEY)}" onchange="setVisApiKey(this)" autocomplete="off" spellcheck="false">
-      <p class="sub">Lets "Save to / Open from Drive" and the custom sync folder use the Google file browser. Stored on this device only — see the comment in js/04-drive.js for setup steps.</p>
-    </div>
     <button class="sheet-btn" onclick="loadExample()"><span>${ICON.spark}</span> Load example plan</button>
     <button class="sheet-btn danger" onclick="confirmClear()"><span>${ICON.trash}</span> Clear all data</button>
   `);

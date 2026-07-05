@@ -111,7 +111,7 @@ function resumeDrive(){
       restricted.
    5. Store it as the PICKER_API_KEY Actions secret (repo Settings ->
       Secrets and variables -> Actions); the Pages workflow injects it at
-      deploy. Per-device override: Settings sheet -> "Google Picker API key".
+      deploy.
 
    Without a key the Picker is skipped: saves go to My Drive root (you can
    move the file afterwards; the app tracks it by ID) and shared files can't
@@ -119,14 +119,10 @@ function resumeDrive(){
 /* Injected at deploy time from the PICKER_API_KEY repo secret (see
    .github/workflows/pages.yml). Stays "__PICKER_API_KEY__" in git and local dev. */
 const VIS_BUILD_KEY = "__PICKER_API_KEY__";
+try{ localStorage.removeItem("visApiKey"); }catch(e){} // clean up removed per-device override
 const VIS = {
-  // localStorage (Settings sheet) overrides the build-time key on this device;
-  // the key is safe to expose client-side once referrer-restricted.
-  get API_KEY(){
-    const bk = VIS_BUILD_KEY.indexOf("__")===0 ? "" : VIS_BUILD_KEY;
-    try{ return localStorage.getItem("visApiKey") || bk; }catch(e){ return bk; }
-  },
-  set API_KEY(v){ try{ v ? localStorage.setItem("visApiKey", v) : localStorage.removeItem("visApiKey"); }catch(e){} },
+  // key is safe to expose client-side once referrer-restricted
+  get API_KEY(){ return VIS_BUILD_KEY.indexOf("__")===0 ? "" : VIS_BUILD_KEY; },
   SCOPE: "https://www.googleapis.com/auth/drive.file",
   token: null,
   get fileId(){ try{ return localStorage.getItem("visFileId"); }catch(e){ return null; } },
@@ -159,7 +155,7 @@ function toggleVisDefault(el){ try{ localStorage.setItem("visUseDefault", el.che
 function visLocRow(){
   return `<label class="checkrow"><input type="checkbox" ${visUseDefault()?"checked":""} onchange="toggleVisDefault(this)">
     Use the default Drive folder <b>workouts</b> (created if it doesn't exist)</label>
-    <p class="sub">Unchecked: pick a folder or file yourself with the Google file browser${VIS.API_KEY?"":" — needs a Picker API key (below); without one, saves go to My Drive root"}.</p>`;
+    <p class="sub">Unchecked: pick a folder or file yourself with the Google file browser${VIS.API_KEY?"":" — needs the PICKER_API_KEY secret set; without it, saves go to My Drive root"}.</p>`;
 }
 function saveVis(){
   openSheet(`<h3>Save to Drive</h3>
@@ -252,7 +248,7 @@ function doOpenVis(){
           .build();
         p.setVisible(true);
       } else if(VIS.fileId){ visDownload(VIS.fileId); }
-      else openSheet(`<h3>No file yet</h3><p class="sub">Save to Drive first to create a file. To browse and open shared files, the app needs a Google Picker API key: create one in Google Cloud Console (steps in the comment above <code>VIS</code> in js/04-drive.js), then paste it under Settings → Google Picker API key.</p>
+      else openSheet(`<h3>No file yet</h3><p class="sub">Save to Drive first to create a file. To browse and open shared files, the app needs a Google Picker API key: set the PICKER_API_KEY repo secret (setup steps in the comment above <code>VIS</code> in js/04-drive.js).</p>
         <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
     });
   });
@@ -318,15 +314,12 @@ function renderSyncOnly(){
   const el = document.querySelector(".syncpill");
   if(el){ el.textContent = DRIVE.label(); el.className = "syncpill "+(DRIVE.status==="on"?"on":DRIVE.status==="error"?"err":""); }
 }
-/* Settings-sheet handler: reads the input element directly (never interpolate
-   user text into inline handler args — see CLAUDE.md). */
-function setVisApiKey(el){ VIS.API_KEY = (el.value||"").trim(); }
 /* Pick a custom folder for app-data sync (folder mode). Uses the Picker, so it
    needs an API key; picking also grants drive.file access to that folder. */
 function chooseSyncFolder(){
   visToken(()=>pickerReady(hasPicker=>{
     if(!hasPicker){
-      return openSheet(`<h3>Picker key needed</h3><p class="sub">Choosing a custom folder uses the Google file browser, which needs a Picker API key (Settings → Google Picker API key). Without one, sync uses the default <b>workouts</b> folder.</p>
+      return openSheet(`<h3>Picker key needed</h3><p class="sub">Choosing a custom folder uses the Google file browser, which needs the PICKER_API_KEY repo secret. Without it, sync uses the default <b>workouts</b> folder.</p>
         <button class="sheet-btn" onclick="openDataMenu()"><span>${ICON.back}</span> Back</button>`);
     }
     const p = new google.picker.PickerBuilder()
