@@ -74,16 +74,23 @@ function resumeDrive(){
    4. (Recommended) Restrict the key: HTTP referrer = your Pages origin,
       API restriction = Google Picker API only. Fine to ship publicly once
       restricted.
-   5. Paste it into the app: Settings (tap the storage pill) -> "Google
-      Picker API key". It's stored in this device's localStorage, not in git.
+   5. Store it as the PICKER_API_KEY Actions secret (repo Settings ->
+      Secrets and variables -> Actions); the Pages workflow injects it at
+      deploy. Per-device override: Settings sheet -> "Google Picker API key".
 
    Without a key the Picker is skipped: saves go to My Drive root (you can
    move the file afterwards; the app tracks it by ID) and shared files can't
    be browsed. */
+/* Injected at deploy time from the PICKER_API_KEY repo secret (see
+   .github/workflows/pages.yml). Stays "__PICKER_API_KEY__" in git and local dev. */
+const VIS_BUILD_KEY = "__PICKER_API_KEY__";
 const VIS = {
-  // Stored per-device in localStorage (set via Settings sheet); the key is
-  // safe to expose client-side once restricted, but this keeps it out of git.
-  get API_KEY(){ try{ return localStorage.getItem("visApiKey") || ""; }catch(e){ return ""; } },
+  // localStorage (Settings sheet) overrides the build-time key on this device;
+  // the key is safe to expose client-side once referrer-restricted.
+  get API_KEY(){
+    const bk = VIS_BUILD_KEY.indexOf("__")===0 ? "" : VIS_BUILD_KEY;
+    try{ return localStorage.getItem("visApiKey") || bk; }catch(e){ return bk; }
+  },
   set API_KEY(v){ try{ v ? localStorage.setItem("visApiKey", v) : localStorage.removeItem("visApiKey"); }catch(e){} },
   SCOPE: "https://www.googleapis.com/auth/drive.file",
   token: null,
