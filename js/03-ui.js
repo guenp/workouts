@@ -1,8 +1,19 @@
 /* ---------- sheet helpers ---------- */
+let sheetOpenedAt = 0;
 function openSheet(html){
   document.getElementById("sheet").innerHTML = html;
   document.getElementById("sheet").classList.add("open");
   document.getElementById("backdrop").classList.add("open");
+  sheetOpenedAt = Date.now();
+}
+/* Backdrop tap-to-close, guarded against iOS/iPadOS "ghost clicks": the tap
+   that opens a sheet can dispatch a second synthetic click at the same
+   coordinates ~300ms later, which lands on the freshly-shown backdrop and
+   would instantly close the sheet (seen on iPad Chrome/Safari). Ignore
+   backdrop clicks in the first 450ms after opening. */
+function backdropTap(){
+  if(Date.now() - sheetOpenedAt < 450) return;
+  closeSheet();
 }
 function closeSheet(){
   document.getElementById("sheet").classList.remove("open");
