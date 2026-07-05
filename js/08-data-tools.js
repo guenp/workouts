@@ -23,6 +23,10 @@ function openDataMenu(){
     <button class="sheet-btn" onclick="openPasteData()"><span>${ICON.pencil}</span> Paste data</button>
     <button class="sheet-btn" onclick="saveVis()"><span>${ICON.folder}</span> Save to Drive file…</button>
     <button class="sheet-btn" onclick="openVis()"><span>${ICON.open}</span> Open from Drive…</button>
+    <div style="margin:10px 0 4px"><label class="fl">Google Picker API key (optional)</label>
+      <input class="field" type="text" placeholder="AIza…" value="${esc(VIS.API_KEY)}" onchange="setVisApiKey(this)" autocomplete="off" spellcheck="false">
+      <p class="sub">Lets "Save to / Open from Drive" browse folders and shared files. Stored on this device only — see the comment in js/04-drive.js for setup steps.</p>
+    </div>
     <button class="sheet-btn" onclick="loadExample()"><span>${ICON.spark}</span> Load example plan</button>
     <button class="sheet-btn danger" onclick="confirmClear()"><span>${ICON.trash}</span> Clear all data</button>
   `);

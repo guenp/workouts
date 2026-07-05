@@ -74,13 +74,17 @@ function resumeDrive(){
    4. (Recommended) Restrict the key: HTTP referrer = your Pages origin,
       API restriction = Google Picker API only. Fine to ship publicly once
       restricted.
-   5. Paste it into VIS.API_KEY below.
+   5. Paste it into the app: Settings (tap the storage pill) -> "Google
+      Picker API key". It's stored in this device's localStorage, not in git.
 
    Without a key the Picker is skipped: saves go to My Drive root (you can
    move the file afterwards; the app tracks it by ID) and shared files can't
    be browsed. */
 const VIS = {
-  API_KEY: "",
+  // Stored per-device in localStorage (set via Settings sheet); the key is
+  // safe to expose client-side once restricted, but this keeps it out of git.
+  get API_KEY(){ try{ return localStorage.getItem("visApiKey") || ""; }catch(e){ return ""; } },
+  set API_KEY(v){ try{ v ? localStorage.setItem("visApiKey", v) : localStorage.removeItem("visApiKey"); }catch(e){} },
   SCOPE: "https://www.googleapis.com/auth/drive.file",
   token: null,
   get fileId(){ try{ return localStorage.getItem("visFileId"); }catch(e){ return null; } },
@@ -151,7 +155,7 @@ function openVis(){
         .build();
       p.setVisible(true);
     } else if(VIS.fileId){ visDownload(VIS.fileId); }
-    else openSheet(`<h3>No file yet</h3><p class="sub">Save to Drive first to create a file. To browse and open shared files, the app needs a Google Picker API key — setup steps are in the comment above <code>VIS</code> in js/04-drive.js (a free API key from Google Cloud Console that enables Google's file-browser dialog).</p>
+    else openSheet(`<h3>No file yet</h3><p class="sub">Save to Drive first to create a file. To browse and open shared files, the app needs a Google Picker API key: create one in Google Cloud Console (steps in the comment above <code>VIS</code> in js/04-drive.js), then paste it under Settings → Google Picker API key.</p>
       <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
   }));
 }
@@ -208,3 +212,6 @@ function renderSyncOnly(){
   const el = document.querySelector(".syncpill");
   if(el){ el.textContent = DRIVE.label(); el.className = "syncpill "+(DRIVE.status==="on"?"on":DRIVE.status==="error"?"err":""); }
 }
+/* Settings-sheet handler: reads the input element directly (never interpolate
+   user text into inline handler args — see CLAUDE.md). */
+function setVisApiKey(el){ VIS.API_KEY = (el.value||"").trim(); }
