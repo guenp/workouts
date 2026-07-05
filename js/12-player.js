@@ -62,6 +62,14 @@ function playerMediaHTML(st){
   }
   return `<div class="pl-media"><span class="exicon" style="width:64px;height:64px">${EXCAT[e.c].icon}</span>${paused}</div>`;
 }
+function playerUpcomingHTML(){
+  const up = PLAYER.steps.slice(PLAYER.i+1).filter(s=>!s.rest);
+  if(!up.length) return "";
+  return `<div class="pl-up"><p class="exnote">Coming up</p>${up.map(s=>
+    `<div class="pl-up-row"><span>${esc(s.name)}</span><span class="sub">${
+      (s.sets>1 ? `set ${s.set}/${s.sets} · ` : "") + (s.reps ? s.reps+" reps" : fmtSecs(s.secs)+"s")
+    }</span></div>`).join("")}</div>`;
+}
 function playerHTML(){
   const p = PLAYER, st = p.steps[p.i];
   if(p.done) return `
@@ -86,17 +94,21 @@ function playerHTML(){
     <h1 style="font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.w.name)}</h1>
   </div><span class="tag">${p.i+1}/${p.steps.length}</span></div>
   <div class="pl-bar"><i id="plBar" style="width:${playerPct()}%"></i></div>
-  ${playerMediaHTML(st)}
-  <h2 style="font-family:'Bricolage Grotesque';font-size:22px;margin:2px 0">${esc(st.name)}</h2>
-  <p class="sub">${st.rest ? (next ? "Next: "+esc(next.name) : "") : (st.sets>1 ? `Set ${st.set} of ${st.sets} · ` : "") + (st.reps ? st.reps+" reps" : fmtSecs(st.secs)+"s")}</p>
-  <div class="pl-time" id="plTime">${fmtSecs(p.remain)}</div>
-  <div class="pl-ctl">
-    <button onclick="playerStep(-1)" aria-label="Previous">${svgPrev}</button>
-    <button class="main" onclick="playerToggle()" aria-label="${p.paused?'Resume':'Pause'}">${p.paused ? svgPlay : svgPause}</button>
-    <button onclick="playerStep(1)" aria-label="Next">${svgNext}</button>
+  <div class="pl-main">
+    ${playerMediaHTML(st)}
+    <div class="pl-side">
+      <h2 style="font-family:'Bricolage Grotesque';font-size:22px;margin:2px 0">${esc(st.name)}</h2>
+      <p class="sub">${st.rest ? (next ? "Next: "+esc(next.name) : "") : (st.sets>1 ? `Set ${st.set} of ${st.sets} · ` : "") + (st.reps ? st.reps+" reps" : fmtSecs(st.secs)+"s")}</p>
+      <div class="pl-time" id="plTime">${fmtSecs(p.remain)}</div>
+      <div class="pl-ctl">
+        <button onclick="playerStep(-1)" aria-label="Previous">${svgPrev}</button>
+        <button class="main" onclick="playerToggle()" aria-label="${p.paused?'Resume':'Pause'}">${p.paused ? svgPlay : svgPause}</button>
+        <button onclick="playerStep(1)" aria-label="Next">${svgNext}</button>
+      </div>
+      ${p.paused ? `<p class="exnote" style="text-align:center;margin-top:8px">Tap anywhere or press space to resume</p>` : ""}
+    </div>
   </div>
-  ${p.paused ? `<p class="exnote" style="text-align:center;margin-top:8px">Tap anywhere or press space to resume</p>` : ""}
   ${desc ? `<p class="exinstr" style="margin-top:14px">${esc(desc)}</p>` : ""}
-  ${!st.rest && next ? `<p class="exnote" style="margin-top:10px">Next: ${esc(next.name)}</p>` : ""}
+  ${playerUpcomingHTML()}
   </div>`;
 }
