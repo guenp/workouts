@@ -1,6 +1,6 @@
 # CLAUDE.md — Workouts maintenance guide
 
-Mobile-first, dependency-free health tracker (daily plan, health/gut logging, workout builder with Garmin FIT export, trends) with optional Google Drive sync. No framework, no build step required for development — plain HTML/CSS/JS served statically (GitHub Pages) or bundled into one file for Claude artifacts.
+Mobile-first, dependency-free health tracker (daily plan, health/gut logging, workout builder with Garmin FIT export, trends) with optional Google Drive sync. No framework, no build step required for development — plain HTML/CSS/JS served statically (live at https://guen.pw/workouts/) or bundled into one file for Claude artifacts.
 
 ## Repository layout
 
@@ -21,7 +21,8 @@ js/11-workouts.js   Workout list/folders, drag-reorder, superset linking, exerci
 js/12-player.js     Guided workout player (timer, media, keyboard shortcuts)
 js/13-fit.js        Binary Garmin .fit encoder (FITX id map, CRC, message defs)
 js/14-main.js       init() call — the only place the app starts
-build.sh            Inlines css+js into dist/health-companion-drive.html (single file)
+build.sh            Inlines css+js into dist/health-companion-drive.html (single file, gitignored)
+.github/workflows/pages.yml  Deploys repo root to GitHub Pages on every push to main
 ```
 
 ## Architecture rules (read before editing)
@@ -100,12 +101,12 @@ FIT encoding (13-fit.js) mirrors real Garmin Connect exports, including undocume
 
 ## GitHub setup
 
-The project is named **Workouts** and lives at github.com/guenp/workouts, deployed to GitHub Pages at https://guen.pw/workouts/ (custom domain on the user's Pages site). Deployment is via GitHub Actions: `.github/workflows/pages.yml` uploads the repo root as the Pages artifact on every push to main — no build step, the modular source is served directly. `dist/` is gitignored (it's a local build output for artifacts/paste-data use only). If the Pages URL ever changes, update the OAuth "Authorized JavaScript origins" in Google Cloud Console or Drive sync will stop connecting.
+The project is named **Workouts** and lives at github.com/guenp/workouts, deployed to GitHub Pages at https://guen.pw/workouts/ (custom domain on the user's Pages site). Deployment is via GitHub Actions: `.github/workflows/pages.yml` uploads the repo root as the Pages artifact on every push to main — no build step, the modular source is served directly. `dist/` is gitignored (it's a local build output for artifacts/paste-data use only). **Every push to main goes straight to production** — run the verification steps below before pushing. If the Pages URL ever changes, update the OAuth "Authorized JavaScript origins" in Google Cloud Console or Drive sync will stop connecting.
 
 ## Building & testing
 
 `./build.sh` → `dist/health-companion-drive.html`, a self-contained single file (for artifacts, "Paste data" environments, or emailing). The modular `css/`+`js/` tree is canonical; never edit `dist/` directly.
 
-Quick verification after changes: `node --check js/*.js` for syntax, then a jsdom smoke test — load the dist file with `runScripts:"dangerously"`, stub `fetch`, wait ~50 ms for `init()`, then drive globals via `window.eval(...)` (top-level `let`/`const` aren't `window` properties). Exercise every tab via `setTab`, one add/log flow per tab, `encodeWorkoutFIT`, and assert `todayKey()` matches the local date under `TZ=Pacific/Auckland` and `TZ=America/Los_Angeles`. Remember `process.exit()` — the animation ticker keeps node alive.
+Quick verification after changes: `for f in js/*.js; do node --check "$f"; done` for syntax (`node --check` takes one file at a time), then a jsdom smoke test — run `./build.sh` first and load the fresh dist file with `runScripts:"dangerously"`, stub `fetch`, wait ~50 ms for `init()`, then drive globals via `window.eval(...)` (top-level `let`/`const` aren't `window` properties). Exercise every tab via `setTab`, one add/log flow per tab, `encodeWorkoutFIT`, and assert `todayKey()` matches the local date under `TZ=Pacific/Auckland` and `TZ=America/Los_Angeles`. Remember `process.exit()` — the animation ticker keeps node alive.
 
 Manual test areas that jsdom can't cover: Drive OAuth popup, Google Picker, `navigator.share` download paths, pointer drag (reorder + superset linking), long-press timing on real touch devices.
