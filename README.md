@@ -15,3 +15,9 @@ For a single self-contained file (Claude artifacts, emailing the app, paste-data
 ## Maintaining
 
 Read `CLAUDE.md` first — it documents the architecture rules, state schema, escaping pitfalls, intentional quirks, and how to test. Edit the modular source, never `dist/`, and re-run `./build.sh` after changes.
+
+## License & credits
+
+This project is licensed under the [MIT License](LICENSE).
+
+Exercise descriptions and photos come from [free-exercise-db](https://github.com/yuhonas/free-exercise-db), an open public-domain exercise dataset released under [The Unlicense](https://github.com/yuhonas/free-exercise-db/blob/main/LICENSE.md). Thanks to its maintainers and contributors.
