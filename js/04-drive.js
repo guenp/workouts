@@ -63,9 +63,22 @@ function resumeDrive(){
 /* ---------- visible Drive file (shareable, custom location) ----------
    Uses the drive.file scope: the app only sees files it created or that you
    picked. Choosing a custom folder or opening shared files uses the Google
-   Picker, which needs an API key: Cloud Console -> enable "Google Picker API"
-   -> Credentials -> Create API key -> paste below. Without a key, saves go to
-   My Drive root (you can move the file afterwards; the app tracks it by ID). */
+   Picker (Google's file-browser dialog), which requires an API key — a plain
+   Google Cloud API key, separate from the OAuth client ID above.
+
+   To set one up (docs: https://developers.google.com/workspace/drive/picker):
+   1. Go to https://console.cloud.google.com/ and select the same project as
+      the OAuth client.
+   2. APIs & Services -> Library -> enable "Google Picker API".
+   3. APIs & Services -> Credentials -> Create credentials -> API key.
+   4. (Recommended) Restrict the key: HTTP referrer = your Pages origin,
+      API restriction = Google Picker API only. Fine to ship publicly once
+      restricted.
+   5. Paste it into VIS.API_KEY below.
+
+   Without a key the Picker is skipped: saves go to My Drive root (you can
+   move the file afterwards; the app tracks it by ID) and shared files can't
+   be browsed. */
 const VIS = {
   API_KEY: "",
   SCOPE: "https://www.googleapis.com/auth/drive.file",
@@ -138,7 +151,7 @@ function openVis(){
         .build();
       p.setVisible(true);
     } else if(VIS.fileId){ visDownload(VIS.fileId); }
-    else openSheet(`<h3>No file yet</h3><p class="sub">Save to Drive first, or add a Picker API key (see code comment) to browse and open shared files.</p>
+    else openSheet(`<h3>No file yet</h3><p class="sub">Save to Drive first to create a file. To browse and open shared files, the app needs a Google Picker API key — setup steps are in the comment above <code>VIS</code> in js/04-drive.js (a free API key from Google Cloud Console that enables Google's file-browser dialog).</p>
       <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
   }));
 }
