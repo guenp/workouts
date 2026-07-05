@@ -15,7 +15,6 @@ function setStorageMode(m){
 }
 const DRIVE = {
   CLIENT_ID: "917051838146-5klrr8khk1dub831kje93vogho5hhq70.apps.googleusercontent.com",
-  SCOPE: "https://www.googleapis.com/auth/drive.appdata",
   token:null, fileId:null, status:"off", timer:null, expTimer:null,
   label(){ if(getMode()==="local") return "Local"; return {off:"Drive: off", connecting:"Connecting…", on:"Drive ✓", saving:"Saving…", error:"Sync error"}[this.status]; }
 };
@@ -23,17 +22,52 @@ function pillTap(){
   if(getMode()==="drive" && DRIVE.status!=="on" && DRIVE.status!=="connecting"){ driveConnect(); }
   else { openDataMenu(); }
 }
+/* ---------- sync location (Settings → Google Drive settings) ----------
+   "appdata" (default): hidden appDataFolder, scope drive.appdata.
+   "folder": a visible Drive folder, scope drive.file — either the default
+   "workouts" folder (created on demand) or a custom folder picked with the
+   Google Picker. Switching drops the cached token because the scope differs. */
+const SCOPES = {appdata:"https://www.googleapis.com/auth/drive.appdata", file:"https://www.googleapis.com/auth/drive.file"};
+function syncLoc(){ try{ return localStorage.getItem("driveSyncLoc")==="folder" ? "folder" : "appdata"; }catch(e){ return "appdata"; } }
+function driveScope(){ return syncLoc()==="folder" ? SCOPES.file : SCOPES.appdata; }
+function syncFolderPref(){ try{ return JSON.parse(localStorage.getItem("driveSyncFolder")); }catch(e){ return null; } } // {id,name} or null = default "workouts"
+function dropDriveToken(){
+  DRIVE.token = null; DRIVE.fileId = null; DRIVE.status = "off";
+  clearTimeout(DRIVE.expTimer);
+  try{ localStorage.removeItem("driveTok"); }catch(e){}
+}
+function setSyncLoc(v){
+  if(v === syncLoc()) return;
+  try{ localStorage.setItem("driveSyncLoc", v); }catch(e){}
+  dropDriveToken();                       // scope changed — old token is invalid for the new mode
+  openDataMenu();
+  if(getMode()==="drive") driveConnect(); // re-consent with the new scope
+  else render();
+}
+/* Find (or create) the default "workouts" folder. Works with either token's
+   fetch wrapper; drive.file only sees app-created files, so this finds the
+   folder this app made and never someone's unrelated "workouts" folder. */
+async function ensureDefaultFolder(f){
+  const q = await (await f("https://www.googleapis.com/drive/v3/files?fields=files(id)&q=" +
+    encodeURIComponent("name='workouts' and mimeType='application/vnd.google-apps.folder' and trashed=false"))).json();
+  if(q.files?.length) return q.files[0].id;
+  const m = await (await f("https://www.googleapis.com/drive/v3/files",
+    {method:"POST", headers:{"Content-Type":"application/json"},
+     body:JSON.stringify({name:"workouts", mimeType:"application/vnd.google-apps.folder"})})).json();
+  if(!m.id) throw new Error("couldn't create workouts folder");
+  return m.id;
+}
 function driveConnect(){
   if(DRIVE.status==="on"){ return; }
   if(!window.google?.accounts){ DRIVE.status="error"; render(); return; }
   DRIVE.status="connecting"; render();
   const tc = google.accounts.oauth2.initTokenClient({
     client_id: DRIVE.CLIENT_ID,
-    scope: DRIVE.SCOPE,
+    scope: driveScope(),
     callback: async (resp)=>{
       if(resp.error){ console.error("Drive auth error:", resp); DRIVE.status="error"; render(); return; }
       DRIVE.token = resp.access_token;
-      try{ localStorage.setItem("driveTok", JSON.stringify({t:resp.access_token, exp:Date.now()+55*60*1000})); }catch(e){}
+      try{ localStorage.setItem("driveTok", JSON.stringify({t:resp.access_token, exp:Date.now()+55*60*1000, scope:driveScope()})); }catch(e){}
       await driveInit();
       scheduleTokenExpiry(55*60*1000);
     },
@@ -54,6 +88,7 @@ function resumeDrive(){
   let saved = null;
   try{ saved = JSON.parse(localStorage.getItem("driveTok")); }catch(e){}
   if(!saved) return;
+  if((saved.scope || SCOPES.appdata) !== driveScope()) return; // token from the other sync mode
   if(saved.exp > Date.now()){
     DRIVE.token = saved.t;
     driveInit();
@@ -118,19 +153,48 @@ function pickerReady(cb){
   if(!VIS.API_KEY || !window.gapi) return cb(false);
   gapi.load("picker", ()=>cb(true));
 }
+/* Save/Open location: "use default folder" checkbox, persisted per device. */
+function visUseDefault(){ try{ return localStorage.getItem("visUseDefault")!=="0"; }catch(e){ return true; } }
+function toggleVisDefault(el){ try{ localStorage.setItem("visUseDefault", el.checked?"1":"0"); }catch(e){} }
+function visLocRow(){
+  return `<label class="checkrow"><input type="checkbox" ${visUseDefault()?"checked":""} onchange="toggleVisDefault(this)">
+    Use the default Drive folder <b>workouts</b> (created if it doesn't exist)</label>
+    <p class="sub">Unchecked: pick a folder or file yourself with the Google file browser${VIS.API_KEY?"":" — needs a Picker API key (below); without one, saves go to My Drive root"}.</p>`;
+}
 function saveVis(){
+  openSheet(`<h3>Save to Drive</h3>
+    <p class="sub">Saves a visible, shareable health-tracker.json to your Drive.</p>
+    ${visLocRow()}
+    <button class="primary" onclick="doSaveVis()">Save</button>`);
+}
+function doSaveVis(){
   closeSheet();
-  visToken(()=>pickerReady(hasPicker=>{
-    if(hasPicker && !VIS.fileId){
-      const p = new google.picker.PickerBuilder()
-        .setOAuthToken(VIS.token).setDeveloperKey(VIS.API_KEY)
-        .addView(new google.picker.DocsView(google.picker.ViewId.FOLDERS).setSelectFolderEnabled(true))
-        .setTitle("Choose a folder")
-        .setCallback(d=>{ if(d.action==="picked") visUpload(d.docs[0].id); })
-        .build();
-      p.setVisible(true);
-    } else visUpload(null);
-  }));
+  visToken(async ()=>{
+    if(visUseDefault()){
+      try{ visUpload(await ensureDefaultFolder(vfetch)); }
+      catch(e){ console.error(e); visUpload(null); }
+    } else pickerReady(hasPicker=>{
+      if(hasPicker){
+        const p = new google.picker.PickerBuilder()
+          .setOAuthToken(VIS.token).setDeveloperKey(VIS.API_KEY)
+          .addView(new google.picker.DocsView(google.picker.ViewId.FOLDERS).setSelectFolderEnabled(true))
+          .setTitle("Choose a folder")
+          .setCallback(d=>{ if(d.action==="picked") visUpload(d.docs[0].id); })
+          .build();
+        p.setVisible(true);
+      } else visUpload(null);
+    });
+  });
+}
+/* Move an existing file into folderId (no-op if it's already there). */
+async function visMoveTo(fileId, folderId){
+  if(!folderId) return;
+  try{
+    const meta = await (await vfetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`)).json();
+    if(!meta.parents || meta.parents.includes(folderId)) return;
+    await vfetch(`https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${folderId}&removeParents=${meta.parents.join(",")}`,
+      {method:"PATCH", headers:{"Content-Type":"application/json"}, body:"{}"});
+  }catch(e){ console.error(e); } // failing to move still leaves the save intact
 }
 async function visUpload(folderId){
   try{
@@ -138,6 +202,7 @@ async function visUpload(folderId){
       const r = await vfetch(`https://www.googleapis.com/upload/drive/v3/files/${VIS.fileId}?uploadType=media`,
         {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(state)});
       if(r.status===404){ VIS.fileId=null; return visUpload(folderId); }
+      await visMoveTo(VIS.fileId, folderId);
     } else {
       const meta = {name:"health-tracker.json", ...(folderId?{parents:[folderId]}:{})};
       const m = await (await vfetch("https://www.googleapis.com/drive/v3/files",
@@ -146,25 +211,51 @@ async function visUpload(folderId){
       await vfetch(`https://www.googleapis.com/upload/drive/v3/files/${m.id}?uploadType=media`,
         {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(state)});
     }
-    openSheet(`<h3>Saved to Drive</h3><p class="sub">health-tracker.json is in your Drive — share it like any file. Future saves update the same file even if you move it.</p>
+    openSheet(`<h3>Saved to Drive</h3><p class="sub">health-tracker.json is in ${folderId?(visUseDefault()?"the <b>workouts</b> folder":"the folder you picked"):"your Drive"} — share it like any file. Future saves update the same file.</p>
       <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.check}</span> Done</button>`);
   }catch(e){ console.error(e); }
 }
 function openVis(){
+  openSheet(`<h3>Open from Drive</h3>
+    <p class="sub">Load data from a health-tracker.json in your Drive.</p>
+    ${visLocRow()}
+    <button class="primary" onclick="doOpenVis()">Open</button>`);
+}
+function doOpenVis(){
   closeSheet();
-  visToken(()=>pickerReady(hasPicker=>{
-    if(hasPicker){
-      const view = new google.picker.DocsView().setMimeTypes("application/json");
-      const p = new google.picker.PickerBuilder()
-        .setOAuthToken(VIS.token).setDeveloperKey(VIS.API_KEY)
-        .addView(view).setTitle("Open a Health Tracker file")
-        .setCallback(d=>{ if(d.action==="picked") visDownload(d.docs[0].id); })
-        .build();
-      p.setVisible(true);
-    } else if(VIS.fileId){ visDownload(VIS.fileId); }
-    else openSheet(`<h3>No file yet</h3><p class="sub">Save to Drive first to create a file. To browse and open shared files, the app needs a Google Picker API key: create one in Google Cloud Console (steps in the comment above <code>VIS</code> in js/04-drive.js), then paste it under Settings → Google Picker API key.</p>
-      <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
-  }));
+  visToken(async ()=>{
+    if(visUseDefault()){
+      try{
+        const fid = await ensureDefaultFolder(vfetch);
+        const q = await (await vfetch("https://www.googleapis.com/drive/v3/files?orderBy=modifiedTime%20desc&fields=files(id,name,modifiedTime)&q=" +
+          encodeURIComponent(`'${fid}' in parents and trashed=false and mimeType='application/json'`))).json();
+        if(!q.files?.length){
+          return openSheet(`<h3>Folder is empty</h3><p class="sub">No data files in the <b>workouts</b> folder yet — use "Save to Drive file" first, or uncheck the default-folder option to browse elsewhere.</p>
+            <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
+        }
+        /* Drive file ids are URL-safe (letters, digits, - _) so they're fine
+           inside inline handler strings; names are only rendered as HTML text. */
+        openSheet(`<h3>Open from workouts</h3><p class="sub">Files in your default Drive folder.</p>` +
+          q.files.map(f=>`<button class="sheet-btn" onclick="visDownload('${f.id}')"><span>${ICON.open}</span> ${esc(f.name)}<small style="margin-left:auto;color:var(--sage)">${esc((f.modifiedTime||"").slice(0,10))}</small></button>`).join(""));
+      }catch(e){
+        console.error(e);
+        openSheet(`<h3>Couldn't read the folder</h3><p class="sub">Drive didn't respond — check your connection and try again.</p>
+          <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
+      }
+    } else pickerReady(hasPicker=>{
+      if(hasPicker){
+        const view = new google.picker.DocsView().setMimeTypes("application/json");
+        const p = new google.picker.PickerBuilder()
+          .setOAuthToken(VIS.token).setDeveloperKey(VIS.API_KEY)
+          .addView(view).setTitle("Open a Health Tracker file")
+          .setCallback(d=>{ if(d.action==="picked") visDownload(d.docs[0].id); })
+          .build();
+        p.setVisible(true);
+      } else if(VIS.fileId){ visDownload(VIS.fileId); }
+      else openSheet(`<h3>No file yet</h3><p class="sub">Save to Drive first to create a file. To browse and open shared files, the app needs a Google Picker API key: create one in Google Cloud Console (steps in the comment above <code>VIS</code> in js/04-drive.js), then paste it under Settings → Google Picker API key.</p>
+        <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
+    });
+  });
 }
 async function visDownload(id){
   try{
@@ -184,7 +275,15 @@ async function dfetch(url, opts={}){
 }
 async function driveInit(){
   try{
-    const q = await (await dfetch("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27health-tracker.json%27&fields=files(id)")).json();
+    let parent = "appDataFolder";
+    let url = "https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27health-tracker.json%27&fields=files(id)";
+    if(syncLoc()==="folder"){
+      const pref = syncFolderPref();
+      parent = pref?.id || await ensureDefaultFolder(dfetch);
+      url = "https://www.googleapis.com/drive/v3/files?fields=files(id)&q=" +
+        encodeURIComponent(`name='health-tracker.json' and '${parent}' in parents and trashed=false`);
+    }
+    const q = await (await dfetch(url)).json();
     if(q.files?.length){
       DRIVE.fileId = q.files[0].id;
       const remote = await (await dfetch(`https://www.googleapis.com/drive/v3/files/${DRIVE.fileId}?alt=media`)).json();
@@ -193,7 +292,7 @@ async function driveInit(){
     } else {
       const meta = await (await dfetch("https://www.googleapis.com/drive/v3/files", {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({name:"health-tracker.json", parents:["appDataFolder"]})
+        body: JSON.stringify({name:"health-tracker.json", parents:[parent]})
       })).json();
       DRIVE.fileId = meta.id;
       driveUploadSoon();
@@ -222,3 +321,32 @@ function renderSyncOnly(){
 /* Settings-sheet handler: reads the input element directly (never interpolate
    user text into inline handler args — see CLAUDE.md). */
 function setVisApiKey(el){ VIS.API_KEY = (el.value||"").trim(); }
+/* Pick a custom folder for app-data sync (folder mode). Uses the Picker, so it
+   needs an API key; picking also grants drive.file access to that folder. */
+function chooseSyncFolder(){
+  visToken(()=>pickerReady(hasPicker=>{
+    if(!hasPicker){
+      return openSheet(`<h3>Picker key needed</h3><p class="sub">Choosing a custom folder uses the Google file browser, which needs a Picker API key (Settings → Google Picker API key). Without one, sync uses the default <b>workouts</b> folder.</p>
+        <button class="sheet-btn" onclick="openDataMenu()"><span>${ICON.back}</span> Back</button>`);
+    }
+    const p = new google.picker.PickerBuilder()
+      .setOAuthToken(VIS.token).setDeveloperKey(VIS.API_KEY)
+      .addView(new google.picker.DocsView(google.picker.ViewId.FOLDERS).setSelectFolderEnabled(true))
+      .setTitle("Choose a sync folder")
+      .setCallback(d=>{
+        if(d.action!=="picked") return;
+        try{ localStorage.setItem("driveSyncFolder", JSON.stringify({id:d.docs[0].id, name:d.docs[0].name})); }catch(e){}
+        DRIVE.fileId = null;               // look up / create the file in the new folder
+        if(getMode()==="drive" && DRIVE.token) driveInit();
+        openDataMenu();
+      })
+      .build();
+    p.setVisible(true);
+  }));
+}
+function resetSyncFolder(){
+  try{ localStorage.removeItem("driveSyncFolder"); }catch(e){}
+  DRIVE.fileId = null;
+  if(getMode()==="drive" && DRIVE.token) driveInit();
+  openDataMenu();
+}

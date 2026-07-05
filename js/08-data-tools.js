@@ -21,11 +21,22 @@ function openDataMenu(){
     <button class="sheet-btn" onclick="openDownloadMenu()"><span>${ICON.down}</span> Download app data…</button>
     <label class="sheet-btn" for="upIn" style="cursor:pointer"><span>${ICON.up}</span> Upload data</label>
     <button class="sheet-btn" onclick="openPasteData()"><span>${ICON.pencil}</span> Paste data</button>
+    <p class="sub" style="margin-top:14px">Google Drive settings</p>
     <button class="sheet-btn" onclick="saveVis()"><span>${ICON.folder}</span> Save to Drive file…</button>
     <button class="sheet-btn" onclick="openVis()"><span>${ICON.open}</span> Open from Drive…</button>
+    <label class="fl">App-data sync location</label>
+    <div class="seg">
+      <button class="${syncLoc()==='appdata'?'on':''}" onclick="setSyncLoc('appdata')">Hidden app data</button>
+      <button class="${syncLoc()==='folder'?'on':''}" onclick="setSyncLoc('folder')">Drive folder</button>
+    </div>
+    ${syncLoc()==="folder" ? `
+      <p class="sub">Syncing to: <b>${esc(syncFolderPref()?.name || "workouts")}</b>${syncFolderPref()?"":" (default, created automatically)"}</p>
+      <button class="sheet-btn" onclick="chooseSyncFolder()"><span>${ICON.folder}</span> Choose a custom folder…</button>
+      ${syncFolderPref() ? `<button class="sheet-btn" onclick="resetSyncFolder()"><span>${ICON.back}</span> Use default folder (workouts)</button>` : ""}
+    ` : `<p class="sub">Hidden app data is invisible in Drive and private to this app. Choose "Drive folder" to sync to a visible health-tracker.json instead${getMode()==="drive"?" (you'll be asked to reconnect)":""}.</p>`}
     <div style="margin:10px 0 4px"><label class="fl">Google Picker API key (optional)</label>
       <input class="field" type="text" placeholder="AIza…" value="${esc(VIS.API_KEY)}" onchange="setVisApiKey(this)" autocomplete="off" spellcheck="false">
-      <p class="sub">Lets "Save to / Open from Drive" browse folders and shared files. Stored on this device only — see the comment in js/04-drive.js for setup steps.</p>
+      <p class="sub">Lets "Save to / Open from Drive" and the custom sync folder use the Google file browser. Stored on this device only — see the comment in js/04-drive.js for setup steps.</p>
     </div>
     <button class="sheet-btn" onclick="loadExample()"><span>${ICON.spark}</span> Load example plan</button>
     <button class="sheet-btn danger" onclick="confirmClear()"><span>${ICON.trash}</span> Clear all data</button>
