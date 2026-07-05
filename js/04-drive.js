@@ -159,7 +159,7 @@ function visLocRow(){
 }
 function saveVis(){
   openSheet(`<h3>Save to Drive</h3>
-    <p class="sub">Saves a visible, shareable health-tracker.json to your Drive.</p>
+    <p class="sub">Saves a visible, shareable, timestamped workouts-data file to your Drive.</p>
     ${visLocRow()}
     <button class="primary" onclick="doSaveVis()">Save</button>`);
 }
@@ -182,38 +182,28 @@ function doSaveVis(){
     });
   });
 }
-/* Move an existing file into folderId (no-op if it's already there). */
-async function visMoveTo(fileId, folderId){
-  if(!folderId) return;
-  try{
-    const meta = await (await vfetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`)).json();
-    if(!meta.parents || meta.parents.includes(folderId)) return;
-    await vfetch(`https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${folderId}&removeParents=${meta.parents.join(",")}`,
-      {method:"PATCH", headers:{"Content-Type":"application/json"}, body:"{}"});
-  }catch(e){ console.error(e); } // failing to move still leaves the save intact
+/* Each manual save gets its own timestamped file so old saves stay
+   distinguishable in the open-file list (local time, like todayKey). */
+function visFileName(){
+  const d = new Date(), p = n => String(n).padStart(2,"0");
+  return `workouts-data-${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.json`;
 }
 async function visUpload(folderId){
   try{
-    if(VIS.fileId){
-      const r = await vfetch(`https://www.googleapis.com/upload/drive/v3/files/${VIS.fileId}?uploadType=media`,
-        {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(state)});
-      if(r.status===404){ VIS.fileId=null; return visUpload(folderId); }
-      await visMoveTo(VIS.fileId, folderId);
-    } else {
-      const meta = {name:"health-tracker.json", ...(folderId?{parents:[folderId]}:{})};
-      const m = await (await vfetch("https://www.googleapis.com/drive/v3/files",
-        {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(meta)})).json();
-      VIS.fileId = m.id;
-      await vfetch(`https://www.googleapis.com/upload/drive/v3/files/${m.id}?uploadType=media`,
-        {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(state)});
-    }
-    openSheet(`<h3>Saved to Drive</h3><p class="sub">health-tracker.json is in ${folderId?(visUseDefault()?"the <b>workouts</b> folder":"the folder you picked"):"your Drive"} — share it like any file. Future saves update the same file.</p>
+    const name = visFileName();
+    const meta = {name, ...(folderId?{parents:[folderId]}:{})};
+    const m = await (await vfetch("https://www.googleapis.com/drive/v3/files",
+      {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(meta)})).json();
+    VIS.fileId = m.id; // remembered so "Open" without the Picker can grab the latest save
+    await vfetch(`https://www.googleapis.com/upload/drive/v3/files/${m.id}?uploadType=media`,
+      {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(state)});
+    openSheet(`<h3>Saved to Drive</h3><p class="sub">${esc(name)} is in ${folderId?(visUseDefault()?"the <b>workouts</b> folder":"the folder you picked"):"your Drive"} — share it like any file. Each save creates a new timestamped file.</p>
       <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.check}</span> Done</button>`);
   }catch(e){ console.error(e); }
 }
 function openVis(){
   openSheet(`<h3>Open from Drive</h3>
-    <p class="sub">Load data from a health-tracker.json in your Drive.</p>
+    <p class="sub">Load data from a workouts-data file in your Drive.</p>
     ${visLocRow()}
     <button class="primary" onclick="doOpenVis()">Open</button>`);
 }
