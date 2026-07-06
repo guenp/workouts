@@ -323,7 +323,7 @@ function woOverviewHTML(){
           <span class="pencilbtn" style="right:82px;touch-action:none;${e.grp?'color:var(--sage)':''}" title="${e.grp?'Tap to unlink':'Drag onto another exercise to superset'}" onpointerdown="linkDown(event,${i})" oncontextmenu="return false">${ICON.link}</span>
           <span class="pencilbtn" style="right:46px" onclick="openExEdit(${i});exEditMode=true;renderExEdit();event.stopPropagation()" onpointerdown="event.stopPropagation()">${ICON.pencil}</span>
           <span class="draghandle" onpointerdown="dragStart(event,'ex',${i})" oncontextmenu="return false">${ICON.grip}</span>`:""}
-          <div class="exicon" style="overflow:hidden">${state.exImages[e.n] ? `<img src="${state.exImages[e.n]}" style="width:100%;height:100%;object-fit:cover">` : FEDB[e.n] ? fedbAnimHTML(e.n,"exanim") : EXCAT[e.c].icon}</div>
+          <div class="exicon" style="overflow:hidden">${state.exImages[e.n] ? `<img src="${state.exImages[e.n]}" style="width:100%;height:100%;object-fit:cover">` : FEDB[e.n] ? fedbAnimHTML(e.n,"exanim") : YOGADB[e.n]?.img ? yogaImgHTML(e.n,"exanim") : EXCAT[e.c].icon}</div>
           <div class="tx"><div class="t">${esc(e.n)}</div><div class="d">${exSummary(e)}${e.grp?` · superset ${L[e.grp]}`:""}</div></div>
           ${e.grp?`<span class="tag" style="background:var(--sage);color:#fff">${L[e.grp]}</span>`:""}
           ${i < w.exercises.length-1 ? `<span class="restpill ${e.grp?'sup':''}" onclick="openRestEdit(${i});event.stopPropagation()" onpointerdown="event.stopPropagation()">Rest ${e.rest}s</span>` : ""}
@@ -528,11 +528,13 @@ function removeExImage(){
 function exViewHTML(e){
   const m = EXMEDIA[e.n], fe = FEDB[e.n], desc = exDesc(e.n);
   const hasG = m && m !== "none" && m !== "err";
+  const yoga = YOGADB[e.n]?.img ? YOGADB[e.n] : null;
   const custom = state.exImages[e.n];
   let left = "";
   if(custom) left = `<img class="exanim" src="${custom}">`;
   else if(fe) left = fedbAnimHTML(e.n, "exanim");
   else if(hasG) left = `<img class="exanim" src="${m.img}" onclick="exMediaView=exMediaView==='garmin'?null:'garmin';renderExEdit()">`;
+  else if(yoga) left = yogaImgHTML(e.n, "exanim");
   else if(!m && GC[e.n]) left = `<div class="exanim" style="display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;min-height:88px">Loading\u2026</div>`;
   else left = `<div class="exanim" style="display:flex;align-items:center;justify-content:center;min-height:88px"><span class="exicon" style="width:44px;height:44px">${EXCAT[e.c].icon}</span></div>`;
   if(!custom && fe && hasG)
@@ -548,6 +550,7 @@ function exViewHTML(e){
   if(hasG) notes.push(`animation \u00a9 Garmin Ltd. (<a href="${m.page}" target="_blank" style="color:var(--sage)">Garmin Connect</a>, personal use)`);
   if(m === "err" && GC[e.n]) notes.push(`<a href="${GC_PAGE + GC[e.n]}" target="_blank" style="color:var(--sage)">View on Garmin Connect \u2192</a>`);
   if(!custom && fe) notes.push(`photos: free-exercise-db (public domain)`);
+  if(!custom && !fe && yoga) notes.push(`pose art: <a href="https://github.com/alexcumplido/yoga-api" target="_blank" style="color:var(--sage)">Yoga API</a> · CC0 / Flaticon (monkik, dDara)`);
   if(!GC[e.n]) notes.push(`custom / non-Garmin exercise \u2014 exports as a text-only step`);
   return `
     <div class="exsplit">
@@ -738,7 +741,7 @@ function openSharedPreview(){
     <p class="sub"><b>${esc(w.name)}</b> · ${w.exercises.length} exercise${w.exercises.length===1?"":"s"} · ≈${woMinutes(w)} min — goes into your "Shared with me" folder.</p>
     <div class="card" style="max-height:45vh;overflow-y:auto">
       ${w.exercises.map(e=>`<div class="item">
-        <div class="exicon" style="overflow:hidden">${FEDB[e.n] ? fedbAnimHTML(e.n,"exanim") : EXCAT[e.c].icon}</div>
+        <div class="exicon" style="overflow:hidden">${FEDB[e.n] ? fedbAnimHTML(e.n,"exanim") : YOGADB[e.n]?.img ? yogaImgHTML(e.n,"exanim") : EXCAT[e.c].icon}</div>
         <div class="tx"><div class="t">${esc(e.n)}</div><div class="d">${exSummary(e)}${e.grp?` · superset ${L[e.grp]}`:""}</div></div>
       </div>`).join("")}
     </div>

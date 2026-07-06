@@ -116,6 +116,7 @@ function playerMediaHTML(st){
   const e = st.e;
   if(state.exImages[e.n]) return `<div class="pl-media"><img src="${state.exImages[e.n]}">${paused}</div>`;
   if(FEDB[e.n]) return `<div class="pl-media">${fedbAnimHTML(e.n,"")}${paused}</div>`;
+  if(YOGADB[e.n]?.img) return `<div class="pl-media">${yogaImgHTML(e.n,"")}${paused}</div>`;
   const m = EXMEDIA[e.n];
   if(m && m !== "none" && m !== "err" && m.vid)
     return `<div class="pl-media"><video src="${m.vid}" poster="${m.img}" autoplay loop muted playsinline></video>${paused}</div>`;
@@ -154,7 +155,7 @@ function playerExListHTML(){
       ${rows.map(({e,i})=>`
         <button class="item ${on(e)?'playing':''}" style="position:relative;overflow:visible;${e.grp?'box-shadow:inset 3px 0 0 var(--sage);':''}"
           onclick="openExEdit(${i});event.stopPropagation()">
-          <div class="exicon" style="overflow:hidden">${state.exImages[e.n] ? `<img src="${state.exImages[e.n]}" style="width:100%;height:100%;object-fit:cover">` : FEDB[e.n] ? fedbAnimHTML(e.n,"exanim") : EXCAT[e.c].icon}</div>
+          <div class="exicon" style="overflow:hidden">${state.exImages[e.n] ? `<img src="${state.exImages[e.n]}" style="width:100%;height:100%;object-fit:cover">` : FEDB[e.n] ? fedbAnimHTML(e.n,"exanim") : YOGADB[e.n]?.img ? yogaImgHTML(e.n,"exanim") : EXCAT[e.c].icon}</div>
           <div class="tx"><div class="t">${esc(e.n)}</div><div class="d">${exSummary(e)}${e.grp?` · superset ${L[e.grp]}`:""}</div></div>
           ${e.grp?`<span class="tag" style="background:var(--sage);color:#fff">${L[e.grp]}</span>`:""}
           ${i < w.exercises.length-1 ? `<span class="restpill ${e.grp?'sup':''}" onclick="openRestEdit(${i});event.stopPropagation()" onpointerdown="event.stopPropagation()">Rest ${e.rest}s</span>` : ""}

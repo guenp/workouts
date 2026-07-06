@@ -63,7 +63,11 @@ function fedbAnimHTML(name, cls){
   const urls = fe.i.map(p=>FEDB_IMG+p);
   return `<img class="${cls}" src="${urls[0]}" data-frames="${urls.join("|")}" data-i="0" alt="${esc(name)}">`;
 }
-function exDesc(n){ return (FEDB[n]?.t || "").trim() || NYTDESC[n] || ""; }
+function yogaImgHTML(name, cls){
+  const y = YOGADB[name]; if(!y || !y.img) return "";
+  return `<img class="${cls}" src="${y.img}" alt="${esc(name)}" style="object-fit:contain;background:#fff">`;
+}
+function exDesc(n){ return (FEDB[n]?.t || "").trim() || NYTDESC[n] || YOGADB[n]?.t || ""; }
 function topBarHTML(){
   return `<div style="display:flex;gap:6px;align-items:center">
     <span class="syncpill ${DRIVE.status==='on'?'on':DRIVE.status==='error'?'err':''}">${DRIVE.label()}</span>
