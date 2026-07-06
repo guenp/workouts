@@ -585,6 +585,7 @@ function renderExEdit(){
     </div>
     <button class="primary" onclick="exEditMode=false;renderExEdit();render()">Done</button>
     ` : `
+    ${(PLAYER && !PLAYER.done && PLAYER.w === w) ? `<button class="primary" style="margin:10px 0 4px" onclick="playerJumpToEx(exIdx)">▶︎ Skip to this exercise</button>` : ""}
     <div id="exMedia">${exViewHTML(e)}</div>
     `}
   `);

@@ -62,13 +62,39 @@ function playerMediaHTML(st){
   }
   return `<div class="pl-media"><span class="exicon" style="width:64px;height:64px">${EXCAT[e.c].icon}</span>${paused}</div>`;
 }
-function playerUpcomingHTML(){
-  const up = PLAYER.steps.slice(PLAYER.i+1).filter(s=>!s.rest);
-  if(!up.length) return "";
-  return `<div class="pl-up"><p class="exnote">Coming up</p>${up.map(s=>
-    `<div class="pl-up-row"><span>${esc(s.name)}</span><span class="sub">${
-      (s.sets>1 ? `set ${s.set}/${s.sets} · ` : "") + (s.reps ? s.reps+" reps" : fmtSecs(s.secs)+"s")
-    }</span></div>`).join("")}</div>`;
+/* Full exercise list, identical markup to the workout page (view mode).
+   The exercise/superset currently playing is highlighted; tapping a row
+   opens the same exercise sheet (which offers "Skip to this exercise"). */
+function playerCurEx(){
+  const p = PLAYER;
+  let st = p.steps[p.i];
+  if(st.rest) st = p.steps.slice(p.i+1).find(s=>!s.rest) || [...p.steps.slice(0,p.i)].reverse().find(s=>!s.rest);
+  return st ? st.e : null;
+}
+function playerExListHTML(){
+  const w = PLAYER.w, L = grpLetters(w), cur = playerCurEx();
+  const on = e => cur && (e === cur || (e.grp && e.grp === cur.grp));
+  return `<div class="sec" style="margin-top:18px">
+    <div class="sec-h"><h2>Exercises</h2></div>
+    <div class="card">
+      ${w.exercises.map((e,i)=>`
+        <button class="item ${on(e)?'playing':''}" style="position:relative;overflow:visible;${e.grp?'box-shadow:inset 3px 0 0 var(--sage);':''}"
+          onclick="openExEdit(${i});event.stopPropagation()">
+          <div class="exicon" style="overflow:hidden">${state.exImages[e.n] ? `<img src="${state.exImages[e.n]}" style="width:100%;height:100%;object-fit:cover">` : FEDB[e.n] ? fedbAnimHTML(e.n,"exanim") : EXCAT[e.c].icon}</div>
+          <div class="tx"><div class="t">${esc(e.n)}</div><div class="d">${exSummary(e)}${e.grp?` · superset ${L[e.grp]}`:""}</div></div>
+          ${e.grp?`<span class="tag" style="background:var(--sage);color:#fff">${L[e.grp]}</span>`:""}
+          ${i < w.exercises.length-1 ? `<span class="restpill ${e.grp?'sup':''}" onclick="openRestEdit(${i});event.stopPropagation()" onpointerdown="event.stopPropagation()">Rest ${e.rest}s</span>` : ""}
+        </button>`).join("")}
+    </div>
+  </div>`;
+}
+function playerJumpToEx(i){
+  if(!PLAYER || PLAYER.done) return;
+  const e = PLAYER.w.exercises[i];
+  const j = PLAYER.steps.findIndex(s=>!s.rest && s.e === e);
+  if(j < 0) return;
+  PLAYER.i = j; PLAYER.remain = PLAYER.steps[j].secs;
+  closeSheet(); render();
 }
 function playerHTML(){
   const p = PLAYER, st = p.steps[p.i];
@@ -109,6 +135,6 @@ function playerHTML(){
     </div>
   </div>
   ${desc ? `<p class="exinstr" style="margin-top:14px">${esc(desc)}</p>` : ""}
-  ${playerUpcomingHTML()}
+  ${playerExListHTML()}
   </div>`;
 }

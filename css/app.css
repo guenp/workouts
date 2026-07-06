@@ -147,9 +147,8 @@ select.field{appearance:none; -webkit-appearance:none; background:var(--card) ur
 .pl-ctl button:active{transform:scale(.94)}
 .pl-ctl button svg{width:22px; height:22px}
 .pl-ctl button.main{background:var(--sage); color:#fff; border:none; box-shadow:0 2px 8px rgba(117,128,111,.35)}
-.pl-up{margin-top:16px}
-.pl-up-row{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:7px 12px; background:var(--card); border-radius:10px; margin-top:6px; box-shadow:0 1px 2px rgba(40,50,43,.05)}
-.pl-up-row .sub{white-space:nowrap}
+.item.playing{background:#EAF2EA}
+.item.playing:active{background:#E1EDE1}
 @media (orientation:landscape) and (max-height:540px){
   .pl-main{display:flex; gap:18px; align-items:center}
   .pl-main .pl-media{flex:1 1 50%; min-width:0; height:min(240px,60vh); margin:6px 0}
