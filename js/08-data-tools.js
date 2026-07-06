@@ -1,5 +1,29 @@
+/* ---------- deployed version stamp ---------- */
+/* version.json is written by .github/workflows/pages.yml at deploy time.
+   Missing locally / in single-file builds — the catch keeps that silent. */
+let APPVER = null, verFetched = false;
+function loadVer(){
+  if(verFetched || typeof fetch === "undefined") return;
+  verFetched = true;
+  fetch("version.json", {cache:"no-store"})
+    .then(r => r.ok ? r.json() : null)
+    .then(v => {
+      APPVER = v;
+      const el = document.getElementById("verFoot"); // targeted update — no full re-render
+      if(el) el.innerHTML = verFooterHTML();
+    })
+    .catch(() => {});
+}
+function verFooterHTML(){
+  if(!APPVER || !APPVER.commit) return "";
+  const d = APPVER.builtAt ? new Date(APPVER.builtAt) : null;
+  const when = d && !isNaN(d) ? d.toLocaleString(undefined, {dateStyle:"medium", timeStyle:"short"}) : "";
+  return `<p class="sub" style="margin-top:16px;text-align:center;opacity:.7">Deployed ${esc(String(APPVER.commit))}${when ? ` · ${esc(when)}` : ""}</p>`;
+}
+
 /* ---------- settings menu (tap the pill) ---------- */
 function openDataMenu(){
+  loadVer();
   const m = getMode();
   openSheet(`
     <h3>Storage & data</h3>
@@ -37,6 +61,7 @@ function openDataMenu(){
     ` : `<p class="sub">Hidden app data is invisible in Drive and private to this app. Choose "Drive folder" to sync to a visible health-tracker.json instead${getMode()==="drive"?" (you'll be asked to reconnect)":""}.</p>`}
     <button class="sheet-btn" onclick="loadExample()"><span>${ICON.spark}</span> Load example plan</button>
     <button class="sheet-btn danger" onclick="confirmClear()"><span>${ICON.trash}</span> Clear all data</button>
+    <div id="verFoot">${verFooterHTML()}</div>
   `);
 }
 const SECTIONS = [["workouts","Workouts"],["photos","Exercise photos"],["plans","Plans & goal"],["checks","Health checks"],["logs","Daily logs (move · meals · mind)"],["tags","Tags"]];

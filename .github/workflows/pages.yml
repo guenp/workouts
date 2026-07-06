@@ -29,6 +29,11 @@ jobs:
           if [ -n "$KEY" ]; then
             sed -i "s/__PICKER_API_KEY__/${KEY}/" js/04-drive.js
           fi
+      - name: Stamp deployed version
+        run: |
+          printf '{"commit":"%s","builtAt":"%s"}\n' \
+            "$(git rev-parse --short HEAD)" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > version.json
       - uses: actions/configure-pages@v5
         with:
           enablement: true
