@@ -704,13 +704,30 @@ async function handleShareLink(){
       <p class="sub">The shared-workout link is incomplete or from a newer version of the app.</p>
       <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
   }
-  window._pendingShare = p;
-  const names = p.w.ex.map(e=>String(e?.n||"")).join(" · ").slice(0, 160);
+  /* Sanitize up front so the preview shows exactly what would be imported. */
+  const w = {name: String(p.w.name).slice(0, 120), exercises: p.w.ex.map(sanitizeSharedEx)};
+  window._pendingShare = {w, cx: Array.isArray(p.cx) ? p.cx : []};
+  openSharedPreview();
+}
+function openSharedPreview(){
+  const p = window._pendingShare; if(!p) return;
+  const w = p.w, L = grpLetters(w);
   openSheet(`<h3>Workout shared with you</h3>
-    <p class="sub"><b>${esc(String(p.w.name).slice(0,120))}</b> · ${p.w.ex.length} exercise${p.w.ex.length===1?"":"s"}</p>
-    <p class="sub">${esc(names)}</p>
-    <button class="primary" onclick="importSharedWo()">Add to my workouts</button>
+    <p class="sub"><b>${esc(w.name)}</b> · ${w.exercises.length} exercise${w.exercises.length===1?"":"s"} · ≈${woMinutes(w)} min — goes into your "Shared with me" folder.</p>
+    <div class="card" style="max-height:45vh;overflow-y:auto">
+      ${w.exercises.map(e=>`<div class="item">
+        <div class="exicon" style="overflow:hidden">${FEDB[e.n] ? fedbAnimHTML(e.n,"exanim") : EXCAT[e.c].icon}</div>
+        <div class="tx"><div class="t">${esc(e.n)}</div><div class="d">${exSummary(e)}${e.grp?` · superset ${L[e.grp]}`:""}</div></div>
+      </div>`).join("")}
+    </div>
+    <button class="primary" style="margin-top:10px" onclick="importSharedWo()">Add to my workouts</button>
     <button class="sheet-btn" style="margin-top:8px" onclick="window._pendingShare=null;closeSheet()"><span>${ICON.back}</span> No thanks</button>`);
+}
+function sharedFolderId(){
+  state.woFolders = state.woFolders || [];
+  let f = state.woFolders.find(f=>f.name === "Shared with me");
+  if(!f){ f = {id: uid(), name: "Shared with me", open: true}; state.woFolders.push(f); }
+  return f.id;
 }
 function sanitizeSharedEx(e){
   e = e || {};
@@ -733,7 +750,8 @@ function sanitizeSharedEx(e){
 function importSharedWo(){
   const p = window._pendingShare; window._pendingShare = null;
   if(!p) return closeSheet();
-  const w = {id: uid(), name: String(p.w.name).slice(0, 120), exercises: p.w.ex.map(sanitizeSharedEx)};
+  /* p.w was sanitized in handleShareLink (the preview shows the same data). */
+  const w = {id: uid(), name: p.w.name, folderId: sharedFolderId(), exercises: p.w.exercises};
   const have = new Set((state.customEx||[]).map(x=>x.n));
   (Array.isArray(p.cx) ? p.cx : []).forEach(x=>{
     if(x && typeof x.n === "string"){
