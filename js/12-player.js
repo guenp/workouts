@@ -108,7 +108,6 @@ function playerHTML(){
       <button class="sheet-btn" style="margin-top:8px" onclick="endPlayer()"><span>${ICON.back}</span> Back to workout</button>
     </div>`;
   const next = p.steps[p.i+1];
-  const desc = st.rest ? "" : exDesc(st.name);
   const svgPrev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg>';
   const svgNext = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6l6 6-6 6"/></svg>';
   const svgPlay = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>';
@@ -134,7 +133,6 @@ function playerHTML(){
       ${p.paused ? `<p class="exnote" style="text-align:center;margin-top:8px">Tap anywhere or press space to resume</p>` : ""}
     </div>
   </div>
-  ${desc ? `<p class="exinstr" style="margin-top:14px">${esc(desc)}</p>` : ""}
   ${playerExListHTML()}
   </div>`;
 }
