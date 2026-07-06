@@ -16,6 +16,7 @@ function setStorageMode(m){
 const DRIVE = {
   CLIENT_ID: "917051838146-5klrr8khk1dub831kje93vogho5hhq70.apps.googleusercontent.com",
   token:null, fileId:null, status:"off", timer:null, expTimer:null,
+  pending:false,   // true = local changes Drive hasn't confirmed yet
   label(){ if(getMode()==="local") return "Local"; return {off:"Drive: off", connecting:"Connecting…", on:"Drive ✓", saving:"Saving…", error:"Sync error"}[this.status]; }
 };
 function pillTap(){
@@ -336,7 +337,7 @@ async function driveInit(){
     if(q.files?.length){
       DRIVE.fileId = q.files[0].id;
       const remote = await (await dfetch(`https://www.googleapis.com/drive/v3/files/${DRIVE.fileId}?alt=media`)).json();
-      if(remote?.savedAt && remote.savedAt > (state.savedAt||0)){ state = remote; store.set("steady", state); }
+      if(remote?.savedAt && remote.savedAt > (state.savedAt||0)){ state = remote; store.set("steady", state); materializeToday(); }
       else { driveUploadSoon(); }
     } else {
       const meta = await (await dfetch("https://www.googleapis.com/drive/v3/files", {
@@ -351,7 +352,10 @@ async function driveInit(){
   }catch(e){ if(DRIVE.status!=="off"){ DRIVE.status="error"; render(); } }
 }
 function driveUploadSoon(){
-  if(getMode()!=="drive" || !DRIVE.token || !DRIVE.fileId) return;
+  if(getMode()!=="drive") return;
+  DRIVE.pending = true;                        // remember there's something to push
+  if(!DRIVE.token || !DRIVE.fileId) return;    // token expired/absent: driveInit's
+                                               // savedAt compare uploads it on reconnect
   clearTimeout(DRIVE.timer);
   DRIVE.timer = setTimeout(driveUpload, 1500);   // debounce rapid taps
 }
@@ -361,9 +365,70 @@ async function driveUpload(){
     await dfetch(`https://www.googleapis.com/upload/drive/v3/files/${DRIVE.fileId}?uploadType=media`, {
       method:"PATCH", headers:{"Content-Type":"application/json"}, body: JSON.stringify(state)
     });
+    DRIVE.pending = false;
     DRIVE.status="on"; renderSyncOnly();
-  }catch(e){ if(DRIVE.status!=="off"){ DRIVE.status="error"; renderSyncOnly(); } }
+  }catch(e){ if(DRIVE.status!=="off"){ DRIVE.status="error"; renderSyncOnly(); } }   // pending stays true → retried on next save/foreground
 }
+/* ---------- lifecycle sync (multi-device staleness fixes) ----------
+   Hole 1: uploads are debounced 1.5 s. On mobile, logging something and
+   immediately switching apps froze the page before the timer fired, so the
+   newest edits never reached Drive. Flush at once when the page hides
+   (keepalive lets a small request outlive the page).
+   Hole 2: pulls only happened in driveInit() at startup. A tab resumed from
+   the background never re-fetched, so it showed stale data — and, being
+   last-write-wins by savedAt, its next edit would overwrite the newer remote.
+   Pull when the page returns to the foreground.
+   Hole 3: the 55-min expiry setTimeout is throttled while hidden, so a
+   resumed tab could hold a token that expired hours ago. Re-check the stored
+   expiry on every return to foreground. */
+function driveFlushNow(){
+  if(getMode()!=="drive" || !DRIVE.pending || !DRIVE.token || !DRIVE.fileId) return;
+  clearTimeout(DRIVE.timer); DRIVE.timer = null;
+  const body = JSON.stringify(state);
+  const opts = {method:"PATCH", headers:{"Content-Type":"application/json", Authorization:"Bearer "+DRIVE.token}, body};
+  if(body.length < 60000) opts.keepalive = true;   // keepalive caps at ~64 KB; bigger states send best-effort
+  DRIVE.pending = false;
+  fetch(`https://www.googleapis.com/upload/drive/v3/files/${DRIVE.fileId}?uploadType=media`, opts)
+    .then(r=>{ if(!r.ok) DRIVE.pending = true; })
+    .catch(()=>{ DRIVE.pending = true; });
+}
+async function drivePullLatest(){
+  if(getMode()!=="drive" || !DRIVE.token || !DRIVE.fileId) return;
+  if(DRIVE.pending){ driveUploadSoon(); return; }         // we owe Drive an upload; LWW as ever
+  if(typeof PLAYER!=="undefined" && PLAYER && !PLAYER.done) return;   // don't swap state mid-workout
+  const sheet = document.getElementById("sheet");
+  if(sheet && sheet.classList.contains("open")) return;   // sheet handlers hold indices into current state
+  try{
+    const remote = await (await dfetch(`https://www.googleapis.com/drive/v3/files/${DRIVE.fileId}?alt=media`)).json();
+    if(remote?.savedAt && remote.savedAt > (state.savedAt||0)){
+      state = remote; persist();   // adopting, not authoring — don't bump savedAt
+      materializeToday();
+      render();
+    }
+  }catch(e){}
+}
+function driveOnShow(){
+  if(getMode()!=="drive") return;
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem("driveTok")); }catch(e){}
+  const valid = saved && saved.exp > Date.now() && (saved.scope || SCOPES.appdata) === driveScope();
+  if(!valid){                       // expired while backgrounded (throttled timer never fired)
+    if(DRIVE.token){ dropDriveTokenKeepFile(); render(); }
+    return;                         // pill shows "Drive: off" — tap to reconnect
+  }
+  if(!DRIVE.token){ DRIVE.token = saved.t; scheduleTokenExpiry(saved.exp - Date.now()); }
+  if(!DRIVE.fileId){ driveInit(); return; }
+  drivePullLatest();
+}
+/* Like dropDriveToken but keeps fileId — the file didn't move, only the token died. */
+function dropDriveTokenKeepFile(){
+  DRIVE.token = null; DRIVE.status = "off";
+  clearTimeout(DRIVE.expTimer);
+  try{ localStorage.removeItem("driveTok"); }catch(e){}
+}
+document.addEventListener("visibilitychange", ()=>{ document.hidden ? driveFlushNow() : driveOnShow(); });
+window.addEventListener("pagehide", driveFlushNow);
+window.addEventListener("pageshow", e=>{ if(e.persisted) driveOnShow(); });   // bfcache restore skips init()
 function renderSyncOnly(){
   const el = document.querySelector(".syncpill");
   if(el){ el.textContent = DRIVE.label(); el.className = "syncpill "+(DRIVE.status==="on"?"on":DRIVE.status==="error"?"err":""); }
