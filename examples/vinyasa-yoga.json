@@ -147,6 +147,26 @@
           "grp": "exgrpp2a"
         },
         {
+          "n": "Forward Fold",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 10,
+          "rest": 0,
+          "grp": "exgrpp2b"
+        },
+        {
+          "n": "Halfway Lift",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 8,
+          "rest": 0,
+          "grp": "exgrpp2b"
+        },
+        {
           "n": "Chair Pose",
           "c": "yoga",
           "mode": "time",
@@ -458,6 +478,16 @@
     },
     {
       "n": "Corpse Pose",
+      "c": "yoga",
+      "t": 1
+    },
+    {
+      "n": "Forward Fold",
+      "c": "yoga",
+      "t": 1
+    },
+    {
+      "n": "Halfway Lift",
       "c": "yoga",
       "t": 1
     }
