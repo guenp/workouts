@@ -127,7 +127,7 @@
           "grp": "exgrpp2a"
         },
         {
-          "n": "Upward Dog",
+          "n": "Upward-Facing Dog",
           "c": "yoga",
           "mode": "time",
           "sets": 3,
@@ -147,7 +147,7 @@
           "grp": "exgrpp2a"
         },
         {
-          "n": "Forward Fold",
+          "n": "Standing Forward Bend",
           "c": "yoga",
           "mode": "time",
           "sets": 2,
@@ -167,7 +167,7 @@
           "grp": "exgrpp2b"
         },
         {
-          "n": "Chair Pose",
+          "n": "Chair",
           "c": "yoga",
           "mode": "time",
           "sets": 2,
@@ -177,7 +177,7 @@
           "grp": "exgrpp2b"
         },
         {
-          "n": "High Crescent Lunge",
+          "n": "Crescent Lunge",
           "c": "yoga",
           "mode": "time",
           "sets": 2,
@@ -197,7 +197,7 @@
           "grp": "exgrpp2b"
         },
         {
-          "n": "Upward Dog",
+          "n": "Upward-Facing Dog",
           "c": "yoga",
           "mode": "time",
           "sets": 2,
@@ -227,7 +227,7 @@
           "grp": "exgrpp3a"
         },
         {
-          "n": "Warrior 3",
+          "n": "Warrior Three",
           "c": "yoga",
           "mode": "time",
           "sets": 2,
@@ -267,7 +267,7 @@
           "grp": "exgrpp3a"
         },
         {
-          "n": "Upward Dog",
+          "n": "Upward-Facing Dog",
           "c": "yoga",
           "mode": "time",
           "sets": 2,
@@ -287,7 +287,7 @@
           "grp": "exgrpp3a"
         },
         {
-          "n": "Crow Pose",
+          "n": "Crow",
           "c": "yoga",
           "mode": "time",
           "sets": 1,
@@ -296,8 +296,8 @@
           "rest": 0
         },
         {
-          "n": "Boat Pose",
-          "c": "core",
+          "n": "Boat",
+          "c": "yoga",
           "mode": "time",
           "sets": 1,
           "reps": 10,
@@ -305,13 +305,24 @@
           "rest": 0
         },
         {
-          "n": "Low Boat to High Boat",
-          "c": "core",
-          "mode": "reps",
-          "sets": 1,
-          "reps": 5,
-          "secs": 30,
-          "rest": 0
+          "n": "Half Boat",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 5,
+          "reps": 10,
+          "secs": 5,
+          "rest": 0,
+          "grp": "exgrpp4a"
+        },
+        {
+          "n": "Boat",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 5,
+          "reps": 10,
+          "secs": 5,
+          "rest": 0,
+          "grp": "exgrpp4a"
         },
         {
           "n": "Bridge Pose",
@@ -332,7 +343,7 @@
           "rest": 0
         },
         {
-          "n": "Corpse Pose",
+          "n": "Corpse",
           "c": "yoga",
           "mode": "time",
           "sets": 1,
@@ -420,11 +431,6 @@
       "t": 1
     },
     {
-      "n": "Upward Dog",
-      "c": "yoga",
-      "t": 1
-    },
-    {
       "n": "Child's Pose to Push-Up",
       "c": "yoga"
     },
@@ -438,51 +444,12 @@
       "t": 1
     },
     {
-      "n": "Chair Pose",
-      "c": "yoga",
-      "t": 1
-    },
-    {
-      "n": "High Crescent Lunge",
-      "c": "yoga",
-      "t": 1
-    },
-    {
       "n": "Crescent Lunge to Arrowhead",
       "c": "yoga",
       "t": 1
     },
     {
-      "n": "Warrior 3",
-      "c": "yoga",
-      "t": 1
-    },
-    {
       "n": "Revolved Side Angle",
-      "c": "yoga",
-      "t": 1
-    },
-    {
-      "n": "Crow Pose",
-      "c": "yoga",
-      "t": 1
-    },
-    {
-      "n": "Boat Pose",
-      "c": "core",
-      "t": 1
-    },
-    {
-      "n": "Low Boat to High Boat",
-      "c": "core"
-    },
-    {
-      "n": "Corpse Pose",
-      "c": "yoga",
-      "t": 1
-    },
-    {
-      "n": "Forward Fold",
       "c": "yoga",
       "t": 1
     },
