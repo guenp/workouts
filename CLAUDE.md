@@ -101,6 +101,8 @@ FIT encoding (13-fit.js) mirrors real Garmin Connect exports, including undocume
 
 ## GitHub setup
 
+**Commit identity: never commit as Claude.** All commits (author *and* committer) must be `guenp <4041805+guenp@users.noreply.github.com>`. Set this via `git config user.name guenp && git config user.email 4041805+guenp@users.noreply.github.com` before committing, and do not add `Co-Authored-By: Claude` trailers.
+
 The project is named **Workouts** and lives at github.com/guenp/workouts, deployed to GitHub Pages at https://guen.pw/workouts/ (custom domain on the user's Pages site). Deployment is via GitHub Actions: `.github/workflows/pages.yml` uploads the repo root as the Pages artifact on every push to main — no build step, the modular source is served directly. `dist/` is gitignored (it's a local build output for artifacts/paste-data use only). **Every push to main goes straight to production** — run the verification steps below before pushing. If the Pages URL ever changes, update the OAuth "Authorized JavaScript origins" in Google Cloud Console or Drive sync will stop connecting.
 
 ## Building & testing
