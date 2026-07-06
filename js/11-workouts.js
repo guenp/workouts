@@ -533,11 +533,11 @@ function exViewHTML(e){
   let left = "";
   if(custom) left = `<img class="exanim" src="${custom}">`;
   else if(fe) left = fedbAnimHTML(e.n, "exanim");
-  else if(hasG) left = `<img class="exanim" src="${m.img}" onclick="exMediaView=exMediaView==='garmin'?null:'garmin';renderExEdit()">`;
   else if(yoga) left = yogaImgHTML(e.n, "exanim");
+  else if(hasG) left = `<img class="exanim" src="${m.img}" onclick="exMediaView=exMediaView==='garmin'?null:'garmin';renderExEdit()">`;
   else if(!m && GC[e.n]) left = `<div class="exanim" style="display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;min-height:88px">Loading\u2026</div>`;
   else left = `<div class="exanim" style="display:flex;align-items:center;justify-content:center;min-height:88px"><span class="exicon" style="width:44px;height:44px">${EXCAT[e.c].icon}</span></div>`;
-  if(!custom && fe && hasG)
+  if(!custom && (fe || yoga) && hasG)
     left += `<img class="exgthumb ${exMediaView==='garmin'?'on':''}" src="${m.img}" title="Garmin animation" onclick="exMediaView=exMediaView==='garmin'?null:'garmin';renderExEdit()">`;
   left += `<div style="margin-top:8px;display:flex;gap:10px;font-size:12px">
     <label for="exImgIn" style="color:var(--sage);cursor:pointer" onclick="setExImgTarget()">${custom ? "Replace photo" : "Add photo"}</label>
@@ -548,7 +548,7 @@ function exViewHTML(e){
   const notes = [];
   if(custom) notes.push("your photo");
   if(hasG) notes.push(`animation \u00a9 Garmin Ltd. (<a href="${m.page}" target="_blank" style="color:var(--sage)">Garmin Connect</a>, personal use)`);
-  if(m === "err" && GC[e.n]) notes.push(`<a href="${GC_PAGE + GC[e.n]}" target="_blank" style="color:var(--sage)">View on Garmin Connect \u2192</a>`);
+  if(m === "err" && GC[e.n] && !custom && !fe && !yoga) notes.push(`<a href="${GC_PAGE + GC[e.n]}" target="_blank" style="color:var(--sage)">View on Garmin Connect \u2192</a>`);
   if(!custom && fe) notes.push(`photos: free-exercise-db (public domain)`);
   if(!custom && !fe && yoga) notes.push(`pose art: <a href="https://github.com/alexcumplido/yoga-api" target="_blank" style="color:var(--sage)">Yoga API</a> · CC0 / Flaticon (monkik, dDara)`);
   if(!GC[e.n]) notes.push(`custom / non-Garmin exercise \u2014 exports as a text-only step`);
