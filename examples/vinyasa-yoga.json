@@ -11,9 +11,10 @@
       "name": "Sun Salutation Flow",
       "exercises": [
         {"n": "Cat Cow", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Plank", "c": "core", "mode": "time", "sets": 3, "reps": 10, "secs": 15, "rest": 0, "grp": "exgrpss1"},
+        {"n": "Push Up", "c": "push", "mode": "time", "sets": 3, "reps": 10, "secs": 10, "rest": 0, "grp": "exgrpss1"},
+        {"n": "Cobra Pose", "c": "yoga", "mode": "time", "sets": 3, "reps": 10, "secs": 15, "rest": 0, "grp": "exgrpss1"},
         {"n": "Downward Dog", "c": "yoga", "mode": "time", "sets": 3, "reps": 10, "secs": 30, "rest": 0, "grp": "exgrpss1"},
-        {"n": "Plank", "c": "core", "mode": "time", "sets": 3, "reps": 10, "secs": 20, "rest": 0, "grp": "exgrpss1"},
-        {"n": "Cobra Pose", "c": "yoga", "mode": "time", "sets": 3, "reps": 10, "secs": 20, "rest": 0, "grp": "exgrpss1"},
         {"n": "Child's Pose", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0}
       ]
     },
@@ -23,10 +24,14 @@
       "name": "Vinyasa Power Flow",
       "exercises": [
         {"n": "Cat Cow", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Plank", "c": "core", "mode": "time", "sets": 3, "reps": 10, "secs": 15, "rest": 0, "grp": "exgrppf1"},
+        {"n": "Push Up", "c": "push", "mode": "time", "sets": 3, "reps": 10, "secs": 10, "rest": 0, "grp": "exgrppf1"},
+        {"n": "Cobra Pose", "c": "yoga", "mode": "time", "sets": 3, "reps": 10, "secs": 15, "rest": 0, "grp": "exgrppf1"},
         {"n": "Downward Dog", "c": "yoga", "mode": "time", "sets": 3, "reps": 10, "secs": 30, "rest": 0, "grp": "exgrppf1"},
-        {"n": "Plank", "c": "core", "mode": "time", "sets": 3, "reps": 10, "secs": 30, "rest": 0, "grp": "exgrppf1"},
-        {"n": "Cobra Pose", "c": "yoga", "mode": "time", "sets": 3, "reps": 10, "secs": 20, "rest": 0, "grp": "exgrppf1"},
-        {"n": "Warrior II", "c": "yoga", "mode": "time", "sets": 2, "reps": 10, "secs": 40, "rest": 0},
+        {"n": "Warrior II", "c": "yoga", "mode": "time", "sets": 2, "reps": 10, "secs": 40, "rest": 0, "grp": "exgrppf2"},
+        {"n": "Push Up", "c": "push", "mode": "time", "sets": 2, "reps": 10, "secs": 10, "rest": 0, "grp": "exgrppf2"},
+        {"n": "Cobra Pose", "c": "yoga", "mode": "time", "sets": 2, "reps": 10, "secs": 15, "rest": 0, "grp": "exgrppf2"},
+        {"n": "Downward Dog", "c": "yoga", "mode": "time", "sets": 2, "reps": 10, "secs": 30, "rest": 0, "grp": "exgrppf2"},
         {"n": "Tree Pose", "c": "yoga", "mode": "time", "sets": 2, "reps": 10, "secs": 30, "rest": 0},
         {"n": "Bridge Pose", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 45, "rest": 0},
         {"n": "Pigeon Pose", "c": "yoga", "mode": "time", "sets": 2, "reps": 10, "secs": 45, "rest": 0},
