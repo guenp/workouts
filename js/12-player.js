@@ -10,15 +10,18 @@ function beginWorkout(){
   PLAYER.timer = setInterval(playerTick, 1000);
   render();
 }
-function playerPct(){
-  const done = PLAYER.steps.slice(0, PLAYER.i).reduce((t,st)=>t+st.secs,0) + (PLAYER.steps[PLAYER.i].secs - PLAYER.remain);
-  return Math.min(100, done / PLAYER.total * 100);
+function playerElapsed(){
+  return PLAYER.steps.slice(0, PLAYER.i).reduce((t,st)=>t+st.secs,0) + (PLAYER.steps[PLAYER.i].secs - PLAYER.remain);
 }
+function playerPct(){ return Math.min(100, playerElapsed() / PLAYER.total * 100); }
+function fmtClock(x){ x = Math.max(0, x); return Math.floor(x/60)+":"+String(x%60).padStart(2,"0"); }
 function playerTick(){
   if(!PLAYER || PLAYER.paused || PLAYER.done) return;
   PLAYER.remain--;
   if(PLAYER.remain <= 0){ playerStep(1); return; }
-  const t = document.getElementById("plTime"); if(t) t.textContent = fmtSecs(PLAYER.remain);
+  const el = playerElapsed(), set = (id,v)=>{ const n=document.getElementById(id); if(n) n.textContent=v; };
+  set("plTime", fmtSecs(PLAYER.remain));
+  set("plEl", fmtClock(el)); set("plLeft", "-"+fmtClock(PLAYER.total-el));
   const b = document.getElementById("plBar"); if(b) b.style.width = playerPct()+"%";
 }
 function playerStep(n){
@@ -108,13 +111,24 @@ function playerCurEx(){
   if(st.rest) st = p.steps.slice(p.i+1).find(s=>!s.rest) || [...p.steps.slice(0,p.i)].reverse().find(s=>!s.rest);
   return st ? st.e : null;
 }
+function plExDone(e){
+  for(let j = PLAYER.steps.length-1; j >= PLAYER.i; j--){
+    const s = PLAYER.steps[j];
+    if(!s.rest && (s.e === e || (e.grp && s.e.grp === e.grp))) return false; // still has steps ahead
+  }
+  return true;
+}
+function plTogglePrev(){ PLAYER.showPrev = !PLAYER.showPrev; render(); }
 function playerExListHTML(){
   const w = PLAYER.w, L = grpLetters(w), cur = playerCurEx();
   const on = e => cur && (e === cur || (e.grp && e.grp === cur.grp));
+  const doneN = w.exercises.filter(plExDone).length;
+  const rows = w.exercises.map((e,i)=>({e,i})).filter(x => PLAYER.showPrev || !plExDone(x.e));
   return `<div class="sec" style="margin-top:18px">
     <div class="sec-h"><h2>Exercises</h2></div>
+    ${doneN ? `<button class="pl-prevlink" onclick="plTogglePrev()">${PLAYER.showPrev ? "Hide" : "Show"} previous exercises (${doneN})</button>` : ""}
     <div class="card">
-      ${w.exercises.map((e,i)=>`
+      ${rows.map(({e,i})=>`
         <button class="item ${on(e)?'playing':''}" style="position:relative;overflow:visible;${e.grp?'box-shadow:inset 3px 0 0 var(--sage);':''}"
           onclick="openExEdit(${i});event.stopPropagation()">
           <div class="exicon" style="overflow:hidden">${state.exImages[e.n] ? `<img src="${state.exImages[e.n]}" style="width:100%;height:100%;object-fit:cover">` : FEDB[e.n] ? fedbAnimHTML(e.n,"exanim") : EXCAT[e.c].icon}</div>
@@ -145,10 +159,9 @@ function playerHTML(){
       <button class="sheet-btn" style="margin-top:8px" onclick="endPlayer()"><span>${ICON.back}</span> Back to workout</button>
     </div>`;
   const next = p.steps[p.i+1];
+  const el = playerElapsed();
   const svgPrev = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l-6 6 6 6"/></svg>';
   const svgNext = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6l6 6-6 6"/></svg>';
-  const svgPlay = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>';
-  const svgPause = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg>';
   return `
   <div class="pl-swipe" onclick="playerBgTap(event)"
     onpointerdown="plSwipeDown(event)" onpointermove="plSwipeMove(event)"
@@ -158,19 +171,19 @@ function playerHTML(){
     <h1 style="font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.w.name)}</h1>
   </div><span class="tag">${p.i+1}/${p.steps.length}</span></div>
   <div class="pl-bar"><i id="plBar" style="width:${playerPct()}%"></i></div>
+  <div class="pl-meta"><span id="plEl">${fmtClock(el)}</span><span id="plLeft">-${fmtClock(p.total-el)}</span></div>
   <div class="pl-main" id="plMain">
-    ${playerMediaHTML(st)}
-    <div class="pl-side">
-      <h2 style="font-family:'Bricolage Grotesque';font-size:22px;margin:2px 0">${esc(st.name)}</h2>
+    <div class="pl-head">
+      <h2>${esc(st.name)}</h2>
       <p class="sub">${st.rest ? (next ? "Next: "+esc(next.name) : "") : (st.sets>1 ? `Set ${st.set} of ${st.sets} · ` : "") + (st.reps ? st.reps+" reps" : fmtSecs(st.secs)+"s")}</p>
-      <div class="pl-time" id="plTime">${fmtSecs(p.remain)}</div>
-      <div class="pl-ctl">
-        <button onclick="playerStep(-1)" aria-label="Previous">${svgPrev}</button>
-        <button class="main" onclick="playerToggle()" aria-label="${p.paused?'Resume':'Pause'}">${p.paused ? svgPlay : svgPause}</button>
-        <button onclick="playerStep(1)" aria-label="Next">${svgNext}</button>
-      </div>
-      <p class="exnote" style="text-align:center;margin-top:8px">${p.paused ? "Tap anywhere to resume" : "Tap to pause · swipe for next"}</p>
     </div>
+    <div class="pl-stage">
+      <button class="pl-arrow" onclick="playerStep(-1)" aria-label="Previous">${svgPrev}</button>
+      ${playerMediaHTML(st)}
+      <button class="pl-arrow" onclick="playerStep(1)" aria-label="Next">${svgNext}</button>
+    </div>
+    <div class="pl-time" id="plTime">${fmtSecs(p.remain)}</div>
+    <p class="exnote" style="text-align:center;margin:0">${p.paused ? "Tap anywhere to resume" : "Tap to pause · swipe for next"}</p>
   </div>
   ${playerExListHTML()}
   </div>`;

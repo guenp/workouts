@@ -137,24 +137,31 @@ select.field{appearance:none; -webkit-appearance:none; background:var(--card) ur
   font-size:10.5px; font-weight:600; padding:2px 10px; border-radius:999px; cursor:pointer; line-height:1.4}
 .restpill.sup{border-color:var(--sage); color:var(--sage)}
 .pl-swipe{touch-action:pan-y; user-select:none; -webkit-user-select:none}
-.pl-media{border-radius:16px; overflow:hidden; background:var(--card); margin:10px 0; height:min(240px,32vh); display:flex; align-items:center; justify-content:center; position:relative; box-shadow:0 1px 2px rgba(40,50,43,.05)}
+.pl-media{border-radius:16px; overflow:hidden; background:var(--card); margin:0; flex:1; min-width:0; height:min(240px,32vh); display:flex; align-items:center; justify-content:center; position:relative; box-shadow:0 1px 2px rgba(40,50,43,.05)}
 .pl-media img,.pl-media video{max-width:100%; max-height:100%; width:auto; display:block}
 .pl-paused{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(247,249,245,.55); font-family:'Bricolage Grotesque'; font-weight:700; font-size:18px; color:var(--ink)}
-.pl-time{font-family:'Bricolage Grotesque'; font-size:52px; font-weight:700; text-align:center; margin:6px 0}
-.pl-bar{height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin:10px 0}
+.pl-meta{display:flex; justify-content:space-between; font-size:11.5px; font-weight:600; color:var(--muted); margin:-4px 1px 0; font-variant-numeric:tabular-nums}
+.pl-head{text-align:center; margin:8px 0 6px}
+.pl-head h2{font-family:'Bricolage Grotesque'; font-size:20px; margin:0; line-height:1.15}
+.pl-head .sub{margin:1px 0 0}
+.pl-stage{display:flex; align-items:center; gap:2px}
+.pl-arrow{flex:0 0 38px; align-self:stretch; min-height:64px; border:none; background:none; color:var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; border-radius:12px; transition:transform .08s}
+.pl-arrow svg{width:26px; height:26px}
+.pl-arrow:active{background:var(--card); color:var(--ink); transform:scale(.9)}
+.pl-time{font-family:'Bricolage Grotesque'; font-size:48px; font-weight:700; text-align:center; margin:4px 0 2px; font-variant-numeric:tabular-nums}
+.pl-bar{height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin:10px 0 6px}
 .pl-bar i{display:block; height:100%; background:var(--sage); border-radius:3px; transition:width .3s linear}
-.pl-ctl{display:flex; gap:12px; justify-content:center; margin-top:12px}
-.pl-ctl button{width:56px; height:56px; border-radius:50%; border:1.5px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 2px rgba(40,50,43,.06); transition:transform .08s}
-.pl-ctl button:active{transform:scale(.94)}
-.pl-ctl button svg{width:22px; height:22px}
-.pl-ctl button.main{background:var(--sage); color:#fff; border:none; box-shadow:0 2px 8px rgba(117,128,111,.35)}
+.pl-prevlink{display:block; border:none; background:none; color:var(--sage); font:inherit; font-size:13px; font-weight:600; padding:0 2px 8px; cursor:pointer; text-align:left}
 .item.playing{background:#EAF2EA}
 .item.playing:active{background:#E1EDE1}
 @media (orientation:landscape) and (max-height:540px){
-  .pl-main{display:flex; gap:18px; align-items:center}
-  .pl-main .pl-media{flex:1 1 50%; min-width:0; height:min(240px,60vh); margin:6px 0}
-  .pl-side{flex:1 1 50%; min-width:0; display:flex; flex-direction:column; align-items:center; text-align:center}
-  .pl-side .pl-time{font-size:44px; margin:2px 0}
+  .pl-main{display:flex; gap:16px; align-items:center}
+  .pl-main .pl-head{flex:0 0 auto; order:2; margin:0}
+  .pl-main .pl-stage{flex:1 1 55%; min-width:0; order:1}
+  .pl-main .pl-stage .pl-media{height:min(240px,58vh)}
+  .pl-main .pl-head h2{font-size:18px}
+  .pl-main .pl-time{order:3; flex:0 0 auto; font-size:40px; margin:0}
+  .pl-main .exnote{display:none}
 }
 .exthumbs{display:flex; gap:8px; margin:4px 0 10px}
 .exthumb{width:88px; height:88px; border-radius:12px; object-fit:cover; cursor:pointer; border:2px solid var(--line); background:var(--paper)}
