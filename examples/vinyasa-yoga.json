@@ -80,12 +80,30 @@
       "name": "Vinyasa Power Flow",
       "exercises": [
         {
-          "n": "Cat Cow",
+          "n": "Child's Pose to Push-Up",
+          "c": "yoga",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 5,
+          "secs": 30,
+          "rest": 0
+        },
+        {
+          "n": "Three-Legged Dog Knee-to-Nose",
+          "c": "yoga",
+          "mode": "reps",
+          "sets": 2,
+          "reps": 3,
+          "secs": 30,
+          "rest": 0
+        },
+        {
+          "n": "Turbo Dog",
           "c": "yoga",
           "mode": "time",
           "sets": 1,
           "reps": 10,
-          "secs": 60,
+          "secs": 25,
           "rest": 0
         },
         {
@@ -94,9 +112,9 @@
           "mode": "time",
           "sets": 3,
           "reps": 10,
-          "secs": 15,
+          "secs": 10,
           "rest": 0,
-          "grp": "exgrppf1"
+          "grp": "exgrpp2a"
         },
         {
           "n": "Chaturanga",
@@ -106,17 +124,17 @@
           "reps": 10,
           "secs": 10,
           "rest": 0,
-          "grp": "exgrppf1"
+          "grp": "exgrpp2a"
         },
         {
-          "n": "Cobra Pose",
+          "n": "Upward Dog",
           "c": "yoga",
           "mode": "time",
           "sets": 3,
           "reps": 10,
           "secs": 15,
           "rest": 0,
-          "grp": "exgrppf1"
+          "grp": "exgrpp2a"
         },
         {
           "n": "Downward Dog",
@@ -126,17 +144,27 @@
           "reps": 10,
           "secs": 30,
           "rest": 0,
-          "grp": "exgrppf1"
+          "grp": "exgrpp2a"
         },
         {
-          "n": "Warrior II",
+          "n": "Chair Pose",
           "c": "yoga",
           "mode": "time",
           "sets": 2,
           "reps": 10,
-          "secs": 40,
+          "secs": 25,
           "rest": 0,
-          "grp": "exgrppf2"
+          "grp": "exgrpp2b"
+        },
+        {
+          "n": "High Crescent Lunge",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 20,
+          "rest": 0,
+          "grp": "exgrpp2b"
         },
         {
           "n": "Chaturanga",
@@ -146,17 +174,17 @@
           "reps": 10,
           "secs": 10,
           "rest": 0,
-          "grp": "exgrppf2"
+          "grp": "exgrpp2b"
         },
         {
-          "n": "Cobra Pose",
+          "n": "Upward Dog",
           "c": "yoga",
           "mode": "time",
           "sets": 2,
           "reps": 10,
           "secs": 15,
           "rest": 0,
-          "grp": "exgrppf2"
+          "grp": "exgrpp2b"
         },
         {
           "n": "Downward Dog",
@@ -164,16 +192,104 @@
           "mode": "time",
           "sets": 2,
           "reps": 10,
-          "secs": 30,
+          "secs": 20,
           "rest": 0,
-          "grp": "exgrppf2"
+          "grp": "exgrpp2b"
         },
         {
-          "n": "Tree Pose",
+          "n": "Crescent Lunge to Arrowhead",
           "c": "yoga",
           "mode": "time",
           "sets": 2,
           "reps": 10,
+          "secs": 20,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Warrior 3",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 25,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Revolved Side Angle",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 20,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Plank",
+          "c": "core",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 5,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Chaturanga",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 10,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Upward Dog",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 10,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Downward Dog",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 20,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Crow Pose",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 20,
+          "rest": 0
+        },
+        {
+          "n": "Boat Pose",
+          "c": "core",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 25,
+          "rest": 0
+        },
+        {
+          "n": "Low Boat to High Boat",
+          "c": "core",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 5,
           "secs": 30,
           "rest": 0
         },
@@ -192,16 +308,16 @@
           "mode": "time",
           "sets": 2,
           "reps": 10,
-          "secs": 45,
+          "secs": 50,
           "rest": 0
         },
         {
-          "n": "Child's Pose",
+          "n": "Corpse Pose",
           "c": "yoga",
           "mode": "time",
           "sets": 1,
           "reps": 10,
-          "secs": 60,
+          "secs": 300,
           "rest": 0
         }
       ]
@@ -280,6 +396,68 @@
   "customEx": [
     {
       "n": "Chaturanga",
+      "c": "yoga",
+      "t": 1
+    },
+    {
+      "n": "Upward Dog",
+      "c": "yoga",
+      "t": 1
+    },
+    {
+      "n": "Child's Pose to Push-Up",
+      "c": "yoga"
+    },
+    {
+      "n": "Three-Legged Dog Knee-to-Nose",
+      "c": "yoga"
+    },
+    {
+      "n": "Turbo Dog",
+      "c": "yoga",
+      "t": 1
+    },
+    {
+      "n": "Chair Pose",
+      "c": "yoga",
+      "t": 1
+    },
+    {
+      "n": "High Crescent Lunge",
+      "c": "yoga",
+      "t": 1
+    },
+    {
+      "n": "Crescent Lunge to Arrowhead",
+      "c": "yoga",
+      "t": 1
+    },
+    {
+      "n": "Warrior 3",
+      "c": "yoga",
+      "t": 1
+    },
+    {
+      "n": "Revolved Side Angle",
+      "c": "yoga",
+      "t": 1
+    },
+    {
+      "n": "Crow Pose",
+      "c": "yoga",
+      "t": 1
+    },
+    {
+      "n": "Boat Pose",
+      "c": "core",
+      "t": 1
+    },
+    {
+      "n": "Low Boat to High Boat",
+      "c": "core"
+    },
+    {
+      "n": "Corpse Pose",
       "c": "yoga",
       "t": 1
     }
