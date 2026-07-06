@@ -31,6 +31,69 @@ const SCOPES = {appdata:"https://www.googleapis.com/auth/drive.appdata", file:"h
 function syncLoc(){ try{ return localStorage.getItem("driveSyncLoc")==="folder" ? "folder" : "appdata"; }catch(e){ return "appdata"; } }
 function driveScope(){ return syncLoc()==="folder" ? SCOPES.file : SCOPES.appdata; }
 function syncFolderPref(){ try{ return JSON.parse(localStorage.getItem("driveSyncFolder")); }catch(e){ return null; } } // {id,name} or null = default "workouts"
+/* ---------- connected Google account (avatar + email in Settings) ----------
+   Fetched from Drive's `about` endpoint, which works with both sync scopes —
+   no extra OAuth scopes or consent needed. Cached in localStorage so the row
+   still shows who's signed in after the ~1h token expires; cleared only by
+   Sign out / Switch account. Never interpolate these values into inline
+   handlers — they're rendered as HTML/attribute text via esc() only. */
+function driveUserInfo(){ try{ return JSON.parse(localStorage.getItem("driveUser")); }catch(e){ return null; } }
+function clearDriveUser(){ try{ localStorage.removeItem("driveUser"); }catch(e){} }
+async function fetchDriveUser(){
+  try{
+    const r = await (await dfetch("https://www.googleapis.com/drive/v3/about?fields=user(displayName,emailAddress,photoLink)")).json();
+    if(!r.user) return;
+    const u = {name:r.user.displayName||"", email:r.user.emailAddress||"", photo:r.user.photoLink||""};
+    try{ localStorage.setItem("driveUser", JSON.stringify(u)); }catch(e){}
+    if(document.getElementById("acctRow")) openDataMenu();   // settings sheet is open — refresh the row
+  }catch(e){}
+}
+function acctAvatar(u, size){
+  const initial = esc((u.name||u.email||"?").trim().charAt(0).toUpperCase());
+  const img = u.photo ? `<img class="acct-img" src="${esc(u.photo)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : "";
+  return `<span class="acct-ava" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.45)}px">${initial}${img}</span>`;
+}
+/* Row shown in Settings when Drive sync is the storage mode. */
+function acctRowHTML(){
+  if(getMode()!=="drive") return "";
+  const u = driveUserInfo();
+  if(!u){
+    if(DRIVE.token){ fetchDriveUser(); return `<div class="acct" id="acctRow">${acctAvatar({name:"…"},36)}<div class="acct-t"><b>Loading account…</b></div></div>`; }
+    return "";
+  }
+  const connected = DRIVE.status==="on" || DRIVE.status==="saving";
+  return `<button class="acct" id="acctRow" onclick="openDriveAccount()">${acctAvatar(u,36)}
+    <div class="acct-t"><b>${esc(u.name||u.email)}</b><small>${esc(u.email)}</small></div>
+    <small class="acct-st ${connected?"":"off"}">${connected?"Connected":"Signed out"}</small></button>`;
+}
+function openDriveAccount(){
+  const u = driveUserInfo();
+  if(!u) return openDataMenu();
+  const connected = !!DRIVE.token;
+  openSheet(`
+    <div class="acct-big">${acctAvatar(u,64)}
+      <h3>${esc(u.name||u.email)}</h3>
+      <p class="sub">${esc(u.email)}${connected?"":" · signed out"}</p>
+    </div>
+    ${connected?"":`<button class="sheet-btn" onclick="closeSheet();driveConnect()"><span>${ICON.chain}</span> Reconnect</button>`}
+    <button class="sheet-btn" onclick="switchDriveAccount()"><span>${ICON.swap}</span> Switch account…</button>
+    <button class="sheet-btn danger" onclick="signOutDrive()"><span>${ICON.logout}</span> Sign out</button>
+    <button class="sheet-btn" onclick="openDataMenu()"><span>${ICON.back}</span> Back</button>`);
+}
+/* Switch: keep the grant (fast re-consent) but force Google's account chooser. */
+function switchDriveAccount(){
+  closeSheet();
+  dropDriveToken(); clearDriveUser();
+  driveConnect("select_account");
+}
+/* Sign out: revoke the grant, forget the account, fall back to local storage. */
+function signOutDrive(){
+  const tok = DRIVE.token;
+  dropDriveToken(); clearDriveUser();
+  if(tok && window.google?.accounts) try{ google.accounts.oauth2.revoke(tok, ()=>{}); }catch(e){}
+  try{ localStorage.setItem("storageMode", "local"); }catch(e){}
+  render(); openDataMenu();
+}
 function dropDriveToken(){
   DRIVE.token = null; DRIVE.fileId = null; DRIVE.status = "off";
   clearTimeout(DRIVE.expTimer);
@@ -57,7 +120,7 @@ async function ensureDefaultFolder(f){
   if(!m.id) throw new Error("couldn't create workouts folder");
   return m.id;
 }
-function driveConnect(){
+function driveConnect(promptMode){   // promptMode "select_account" → force Google's account chooser
   if(DRIVE.status==="on"){ return; }
   if(!window.google?.accounts){ DRIVE.status="error"; render(); return; }
   DRIVE.status="connecting"; render();
@@ -73,7 +136,7 @@ function driveConnect(){
     },
     error_callback: (err)=>{ console.error("Drive popup error:", err); DRIVE.status="error"; render(); }
   });
-  tc.requestAccessToken();
+  tc.requestAccessToken(promptMode ? {prompt: promptMode} : undefined);
 }
 /* One expiry timer at a time — a stale timer from an old token must not
    invalidate a freshly acquired one. */
@@ -284,6 +347,7 @@ async function driveInit(){
       driveUploadSoon();
     }
     DRIVE.status="on"; render();
+    fetchDriveUser();   // avatar/email for the Settings account row (fire-and-forget)
   }catch(e){ if(DRIVE.status!=="off"){ DRIVE.status="error"; render(); } }
 }
 function driveUploadSoon(){

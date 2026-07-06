@@ -197,3 +197,17 @@ nav button.on svg{stroke:var(--orange)}
 .sitrow button{flex:1; padding:12px 4px; border-radius:14px; border:none; background:var(--card); font-weight:600; font-size:14px; box-shadow:0 1px 2px rgba(40,50,43,.05); display:flex; align-items:center; justify-content:center; gap:6px}
 label.fl{display:block; font-size:13px; font-weight:600; color:var(--muted); margin:2px 0 5px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* connected Google account (Settings) */
+.acct{display:flex; align-items:center; gap:12px; width:100%; padding:10px 14px; background:var(--card); border:none; border-radius:14px; margin-bottom:8px; text-align:left; box-shadow:0 1px 2px rgba(40,50,43,.05); font:inherit; color:inherit}
+button.acct{cursor:pointer}
+button.acct:active{background:#FAFBF8}
+.acct-ava{position:relative; overflow:hidden; flex:none; border-radius:50%; background:var(--sage); color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center}
+.acct-img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+.acct-t{min-width:0; flex:1}
+.acct-t b{display:block; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.acct-t small{display:block; color:var(--muted); font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.acct-st{color:var(--good); font-size:12px; font-weight:600; flex:none}
+.acct-st.off{color:var(--muted)}
+.acct-big{text-align:center; margin:4px 0 14px}
+.acct-big .acct-ava{margin:0 auto 10px}

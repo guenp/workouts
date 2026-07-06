@@ -70,6 +70,8 @@ Drive sync (04-drive.js) has two independent mechanisms:
 
 Token lifecycle: access tokens last ~1 h; we cache them in localStorage with a 55-min expiry and resume on startup. **`resumeDrive()` must only run from the end of `init()`**, after local state has loaded — running it earlier makes `driveInit()` compare remote `savedAt` against the empty default state and can clobber newer data. Exactly one expiry timer exists (`scheduleTokenExpiry`); don't add raw `setTimeout`s for token expiry, a stale timer will null a fresh token.
 
+**Connected-account row (Settings).** When Drive is the storage mode, Settings shows who's signed in (avatar + email, standard Google-widget style) via `acctRowHTML()`; tapping opens `openDriveAccount()` with Switch account (re-prompts with `select_account`, keeps the grant) and Sign out (revokes the token and falls back to local). Account info comes from Drive's `about` endpoint (`fetchDriveUser()`, called from `driveInit`) — works with both sync scopes, no extra OAuth scope. It's cached in localStorage (`driveUser`) so the row still shows after the ~1h token expires; cleared only by Sign out/Switch. Name/email/photo are user-controlled Google data: render via `esc()` only, never interpolate into inline handlers (handlers here take no args).
+
 `DRIVE.CLIENT_ID` is public by design (OAuth web client for the GitHub Pages origin). Setup steps are in the comment at the top of 04-drive.js.
 
 ## Workouts, player, FIT export

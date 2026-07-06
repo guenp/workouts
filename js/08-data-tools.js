@@ -6,7 +6,8 @@ function openDataMenu(){
     <p class="sub">Choose where your data lives.</p>
     <button class="sheet-btn" onclick="setStorageMode('local')"><span>${m==="local"?ICON.check:ICON.device}</span> This device only (local)</button>
     <button class="sheet-btn" onclick="setStorageMode('drive')"><span>${m==="drive"?ICON.check:ICON.cloud}</span> Sync with Google Drive</button>
-    ${m==="drive" && DRIVE.status!=="on" ? `<button class="sheet-btn" onclick="closeSheet();driveConnect()"><span>${ICON.chain}</span> Connect to Drive now</button>` : ""}
+    ${acctRowHTML()}
+    ${m==="drive" && DRIVE.status!=="on" && !driveUserInfo() ? `<button class="sheet-btn" onclick="closeSheet();driveConnect()"><span>${ICON.chain}</span> Connect to Drive now</button>` : ""}
     <p class="sub" style="margin-top:14px">Data tools</p>
     <div class="numrow" style="margin-bottom:4px">
       <div><label class="fl">Default rest (s)</label><input class="field" type="number" min="0" value="${state.defRest??60}" onchange="state.defRest=Math.max(0,parseInt(this.value)||0);save()"></div>
