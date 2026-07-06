@@ -136,6 +136,7 @@ select.field{appearance:none; -webkit-appearance:none; background:var(--card) ur
   border:1.5px dashed var(--line); background:var(--paper); color:var(--muted);
   font-size:10.5px; font-weight:600; padding:2px 10px; border-radius:999px; cursor:pointer; line-height:1.4}
 .restpill.sup{border-color:var(--sage); color:var(--sage)}
+.pl-swipe{touch-action:pan-y; user-select:none; -webkit-user-select:none}
 .pl-media{border-radius:16px; overflow:hidden; background:var(--card); margin:10px 0; height:min(240px,32vh); display:flex; align-items:center; justify-content:center; position:relative; box-shadow:0 1px 2px rgba(40,50,43,.05)}
 .pl-media img,.pl-media video{max-width:100%; max-height:100%; width:auto; display:block}
 .pl-paused{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(247,249,245,.55); font-family:'Bricolage Grotesque'; font-weight:700; font-size:18px; color:var(--ink)}

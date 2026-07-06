@@ -29,7 +29,44 @@ function playerStep(n){
   render();
 }
 function playerToggle(){ if(PLAYER && !PLAYER.done){ PLAYER.paused = !PLAYER.paused; render(); } }
-function playerBgTap(ev){ if(ev.target.closest && ev.target.closest("button, a")) return; playerToggle(); }
+function playerBgTap(ev){
+  if(PLSW_USED){ PLSW_USED = false; return; }           // a swipe just happened — don't also toggle
+  if(ev.target.closest && ev.target.closest("button, a")) return;
+  playerToggle();
+}
+/* Swipe / drag anywhere on the player: left = next, right = previous.
+   Pointer events cover touch, mouse and pen. Vertical scrolling stays
+   native via touch-action:pan-y on .pl-swipe. PLSW_USED suppresses the
+   click that follows a mouse drag so it isn't read as a pause tap. */
+let PLSW = null, PLSW_USED = false;
+function plSwipeDown(ev){
+  if(!PLAYER || PLAYER.done) return;
+  if(ev.target.closest && ev.target.closest("button, a, input, .restpill")) return;
+  PLSW = {id:ev.pointerId, x:ev.clientX, y:ev.clientY, t:Date.now(), dx:0, dy:0};
+}
+function plSwipeMove(ev){
+  if(!PLSW || ev.pointerId !== PLSW.id) return;
+  PLSW.dx = ev.clientX - PLSW.x; PLSW.dy = ev.clientY - PLSW.y;
+  if(Math.abs(PLSW.dx) > 10 && Math.abs(PLSW.dx) > Math.abs(PLSW.dy)){
+    const m = document.getElementById("plMain");
+    if(m){ m.style.transition = "none"; m.style.transform = "translateX("+(PLSW.dx*0.35)+"px)";
+           m.style.opacity = Math.max(.55, 1 - Math.abs(PLSW.dx)/600); }
+  }
+}
+function plSwipeEnd(ev){
+  if(!PLSW || ev.pointerId !== PLSW.id) return;
+  const {dx, dy, t} = PLSW; PLSW = null;
+  let swipe = Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy)*1.5 && Date.now()-t < 700;
+  if(swipe && dx > 0 && PLAYER.i === 0) swipe = false;  // nothing before the first step — snap back
+  const m = document.getElementById("plMain");
+  if(swipe){
+    PLSW_USED = true;
+    playerStep(dx < 0 ? 1 : -1);                        // render() rebuilds plMain, resets styles
+  } else if(m){
+    m.style.transition = "transform .18s ease, opacity .18s ease";
+    m.style.transform = ""; m.style.opacity = "";
+  }
+}
 document.addEventListener("keydown", ev=>{
   if(!PLAYER || PLAYER.done || tab!=="workouts") return;
   if(ev.target.closest && ev.target.closest("input, textarea, select")) return;
@@ -113,13 +150,15 @@ function playerHTML(){
   const svgPlay = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>';
   const svgPause = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></svg>';
   return `
-  <div onclick="playerBgTap(event)" style="min-height:75vh">
+  <div class="pl-swipe" onclick="playerBgTap(event)"
+    onpointerdown="plSwipeDown(event)" onpointermove="plSwipeMove(event)"
+    onpointerup="plSwipeEnd(event)" onpointercancel="plSwipeEnd(event)" style="min-height:75vh">
   <div class="top"><div style="display:flex;align-items:center;gap:6px;min-width:0">
     <button class="daynav" onclick="endPlayer()">✕</button>
     <h1 style="font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.w.name)}</h1>
   </div><span class="tag">${p.i+1}/${p.steps.length}</span></div>
   <div class="pl-bar"><i id="plBar" style="width:${playerPct()}%"></i></div>
-  <div class="pl-main">
+  <div class="pl-main" id="plMain">
     ${playerMediaHTML(st)}
     <div class="pl-side">
       <h2 style="font-family:'Bricolage Grotesque';font-size:22px;margin:2px 0">${esc(st.name)}</h2>
@@ -130,7 +169,7 @@ function playerHTML(){
         <button class="main" onclick="playerToggle()" aria-label="${p.paused?'Resume':'Pause'}">${p.paused ? svgPlay : svgPause}</button>
         <button onclick="playerStep(1)" aria-label="Next">${svgNext}</button>
       </div>
-      ${p.paused ? `<p class="exnote" style="text-align:center;margin-top:8px">Tap anywhere or press space to resume</p>` : ""}
+      <p class="exnote" style="text-align:center;margin-top:8px">${p.paused ? "Tap anywhere to resume" : "Tap to pause · swipe for next"}</p>
     </div>
   </div>
   ${playerExListHTML()}
