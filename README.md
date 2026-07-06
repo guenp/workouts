@@ -14,7 +14,7 @@ For a single self-contained file (Claude artifacts, emailing the app, paste-data
 
 ## Maintaining
 
-Read `CLAUDE.md` first — it documents the architecture rules, state schema, escaping pitfalls, intentional quirks, and how to test. Edit the modular source, never `dist/`, and re-run `./build.sh` after changes.
+`SPEC.md` is the functional specification (features, tabs, meal planning, workouts, data semantics), and `examples/` contains importable sample data including the NYT 7-Minute Workouts, strength routines, and vinyasa yoga flows. For code changes, read `CLAUDE.md` first — it documents the architecture rules, state schema, escaping pitfalls, intentional quirks, and how to test. Edit the modular source, never `dist/`, and re-run `./build.sh` after changes.
 
 ## License & credits
 
