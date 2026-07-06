@@ -34,7 +34,7 @@ function playerStep(n){
 function playerToggle(){ if(PLAYER && !PLAYER.done){ PLAYER.paused = !PLAYER.paused; render(); } }
 function playerBgTap(ev){
   if(PLSW_USED){ PLSW_USED = false; return; }           // a swipe just happened — don't also toggle
-  if(ev.target.closest && ev.target.closest("button, a")) return;
+  if(ev.target.closest && ev.target.closest("button, a, input, label, .pl-wt")) return;
   playerToggle();
 }
 /* Swipe / drag anywhere on the player: left = next, right = previous.
@@ -78,12 +78,35 @@ document.addEventListener("keydown", ev=>{
   else if(ev.key === "ArrowRight") playerStep(1);
 });
 function endPlayer(){ if(PLAYER) clearInterval(PLAYER.timer); PLAYER = null; render(); }
+/* Weights edited mid-workout write straight to the workout (so it remembers the
+   last weights used); "Log to today" snapshots woSummary(w) into the day item's
+   detail, so past days keep the weights that were actually used that day. */
+function playerSetWt(i, v){
+  const e = PLAYER?.w.exercises[i]; if(!e) return;
+  setExWeight(e, v);
+}
+function playerWtUnit(i){
+  const e = PLAYER?.w.exercises[i]; if(!e) return;
+  const inp = document.getElementById("plWt");
+  if(inp) setExWeight(e, inp.value);            /* commit a value typed but not yet blurred */
+  e.wu = (e.wu||state.wtUnit) === "kg" ? "lb" : "kg";
+  state.wtUnit = e.wu; save(); render();
+}
+function playerWtHTML(st){
+  const e = st.e, i = PLAYER.w.exercises.indexOf(e);
+  if(i < 0) return "";
+  return `<div class="pl-wt">
+    <input id="plWt" class="field" type="number" min="0" step="0.5" inputmode="decimal" placeholder="Weight"
+      value="${e.wt > 0 ? e.wt : ""}" onchange="playerSetWt(${i},this.value)">
+    <button onclick="playerWtUnit(${i})">${(e.wu||state.wtUnit)==="kg"?"kg":"lb"}</button>
+  </div>`;
+}
 function playerLogToday(){
   const w = PLAYER.w;
   materializeDay(new Date());
   const day = state.days[todayKey()];
   const it = day.items.find(x=>x.workoutId===w.id && x.status==="planned");
-  if(it) it.status = "done";
+  if(it){ it.status = "done"; it.detail = woSummary(w); }   /* snapshot today's weights */
   else day.items.push({id:uid(), type:"move", title:w.name, detail:woSummary(w), workoutId:w.id, status:"done", actual:""});
   save(); endPlayer(); setTab("today");
 }
@@ -183,6 +206,7 @@ function playerHTML(){
       <button class="pl-arrow" onclick="playerStep(1)" aria-label="Next">${svgNext}</button>
     </div>
     <div class="pl-time" id="plTime">${fmtSecs(p.remain)}</div>
+    ${st.rest ? "" : playerWtHTML(st)}
     <p class="exnote" style="text-align:center;margin:0">${p.paused ? "Tap anywhere to resume" : "Tap to pause · swipe for next"}</p>
   </div>
   ${playerExListHTML()}

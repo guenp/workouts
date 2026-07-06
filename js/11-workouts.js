@@ -186,8 +186,10 @@ function removeExAt(i){ curWo().exercises.splice(i,1); save(); render(); /* stay
 const woById = id => (state.workouts||[]).find(w=>w.id===id);
 const curWo = () => woById(woEditId || woViewId);
 function exShort(e){ return e.mode==="time" ? `${e.sets}×${e.secs}s` : `${e.sets}×${e.reps}`; }
-function exSummary(e){ return exShort(e) + (e.rest ? ` · rest ${e.rest}s` : ""); }
-function woSummary(w){ return w.exercises.map(e=>`${e.n} ${exShort(e)}`).join(" · "); }
+/* optional weight: e.wt (number) + e.wu ("lb"|"kg") */
+function wtLabel(e){ return e.wt > 0 ? `${e.wt} ${e.wu==="kg"?"kg":"lb"}` : ""; }
+function exSummary(e){ return exShort(e) + (e.wt > 0 ? ` @ ${wtLabel(e)}` : "") + (e.rest ? ` · rest ${e.rest}s` : ""); }
+function woSummary(w){ return w.exercises.map(e=>`${e.n} ${exShort(e)}${e.wt > 0 ? " @ "+wtLabel(e) : ""}`).join(" · "); }
 function woMinutes(w){
   let s = 0;
   w.exercises.forEach(e=>{ s += e.sets * ((e.mode==="time" ? e.secs : e.reps*3) + (e.rest||0)); });
@@ -580,6 +582,13 @@ function renderExEdit(){
       <div><label class="fl">${time?"Seconds":"Reps"}</label><input class="field" type="number" min="1" value="${time?e.secs:e.reps}" oninput="exSet('${time?"secs":"reps"}',this.value)"></div>
       <div><label class="fl">Rest (s)</label><input class="field" type="number" min="0" value="${e.rest}" oninput="exSet('rest',this.value)"></div>
     </div>
+    <div class="numrow" style="margin-top:8px;align-items:end">
+      <div><label class="fl">Weight (optional)</label><input class="field" type="number" min="0" step="0.5" inputmode="decimal" placeholder="—" value="${e.wt > 0 ? e.wt : ""}" oninput="exSetWt(this.value)"></div>
+      <div><label class="fl">Unit</label><div class="seg">
+        <button class="${(e.wu||state.wtUnit)!=="kg"?'on':''}" onclick="exSetWtUnit('lb')">lb</button>
+        <button class="${(e.wu||state.wtUnit)==="kg"?'on':''}" onclick="exSetWtUnit('kg')">kg</button>
+      </div></div>
+    </div>
     <div class="sitrow" style="margin:8px 0">
       <button onclick="moveEx(-1)" ${exIdx===0?"disabled":""}>↑ Move up</button>
       <button onclick="moveEx(1)" ${exIdx===w.exercises.length-1?"disabled":""}>↓ Move down</button>
@@ -597,6 +606,19 @@ function renderExEdit(){
 }
 function exMode(m){ curWo().exercises[exIdx].mode = m; save(); renderExEdit(); }
 function exSet(k,v){ curWo().exercises[exIdx][k] = Math.max(k==="rest"?0:1, parseInt(v)||0); save(); }
+/* Weight is optional: empty/0 clears it. setExWeight is shared with the player. */
+function setExWeight(e, v){
+  const n = Math.min(6500, Math.round(parseFloat(v)*10)/10);
+  if(isFinite(n) && n > 0){ e.wt = n; if(!e.wu) e.wu = state.wtUnit; }
+  else { delete e.wt; }
+  save();
+}
+function exSetWt(v){ setExWeight(curWo().exercises[exIdx], v); }
+function exSetWtUnit(u){
+  const e = curWo().exercises[exIdx];
+  e.wu = u; state.wtUnit = u;   /* remembered as the default for new weights */
+  save(); renderExEdit();
+}
 function moveEx(n){
   const ex = curWo().exercises, j = exIdx+n;
   if(j<0 || j>=ex.length) return;
@@ -640,7 +662,7 @@ function shareUsedCustomEx(w){
 function shareWoPayload(w){
   const cx = shareUsedCustomEx(w);
   return {v:1,
-    w:{name:w.name, ex:w.exercises.map(e=>({n:e.n, c:e.c, mode:e.mode, sets:e.sets, reps:e.reps, secs:e.secs, rest:e.rest, ...(e.grp?{grp:e.grp}:{})}))},
+    w:{name:w.name, ex:w.exercises.map(e=>({n:e.n, c:e.c, mode:e.mode, sets:e.sets, reps:e.reps, secs:e.secs, rest:e.rest, ...(e.wt>0?{wt:e.wt, wu:e.wu}:{}), ...(e.grp?{grp:e.grp}:{})}))},
     ...(cx.length?{cx}:{})};
 }
 function b64urlEncode(bytes){
@@ -741,6 +763,8 @@ function sanitizeSharedEx(e){
     secs: num(e.secs, 1, 7200, 30),
     rest: num(e.rest, 0, 3600, state.defRest ?? 60)
   };
+  const wt = Math.round(+e.wt*10)/10;
+  if(isFinite(wt) && wt > 0 && wt <= 6500){ out.wt = wt; out.wu = e.wu === "kg" ? "kg" : "lb"; }
   if(e.grp){
     const g = String(e.grp).replace(/[^a-zA-Z0-9]/g, "").slice(0, 12);
     if(g) out.grp = g;

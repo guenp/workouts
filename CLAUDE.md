@@ -43,7 +43,7 @@ state = {
   weekPlans: {"<monday-key>": {0..6: [item]}},  // per-week overrides (deep copies of template)
   days: {"YYYY-MM-DD": {items:[item+status], orange:min, gut:[entry]}},
   goal: 45, tags: [string],
-  workouts: [{id,name,folderId?,exercises:[{n,c,mode,sets,reps,secs,rest,grp?}]}],
+  workouts: [{id,name,folderId?,exercises:[{n,c,mode,sets,reps,secs,rest,wt?,wu?,grp?}]}],  // wt: optional weight, wu: "lb"|"kg"; wtUnit (top-level) = default unit for new weights
   woFolders: [{id,name,open}], customEx: [{n,c,t?}], exImages: {name: dataURL},
   defRest, supRest, animMs, sevV2: true, savedAt: ms
 }
@@ -86,6 +86,8 @@ Token lifecycle: access tokens last ~1 h; we cache them in localStorage with a 5
 Exercises reference the library by name (`n`); `EXLIB` gives category, `GC` maps to Garmin Connect keys (media fetched live from Garmin, cached in `EXMEDIA`), `FEDB` provides public-domain photos/descriptions, `FITX` gives the numeric (category, exercise) FIT ids. An exercise missing from `GC`/`FITX` still works — it exports as a text-only step. **If you add an exercise to EXLIB, also add it to GC and FITX when Garmin equivalents exist**, or it will show "not on Garmin".
 
 Supersets: exercises sharing a `grp` id alternate set-by-set; `expandWorkout()` flattens a workout into the step sequence used by both the player and the FIT encoder — change it in one place and both stay consistent.
+
+Weights: `e.wt` (optional) + `e.wu` ("lb"|"kg") show in summaries as `@ 20 lb`, are editable in the exercise sheet and the player (edits write back to the workout = last weights used; "Log to today" snapshots `woSummary(w)` into the day item's `detail`, so past logs keep that day's weights). They export as `workout_step.exercise_weight` (field 12, uint16, kg×100 on the wire) with `weight_display_unit` (field 13, 1=kg, 2=lb).
 
 FIT encoding (13-fit.js) mirrors real Garmin Connect exports, including undocumented fields; the "no per-step names" comment is load-bearing (a custom step name suppresses the watch's built-in animation). Don't "clean up" the magic numbers without a watch to test on.
 

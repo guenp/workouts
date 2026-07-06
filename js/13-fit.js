@@ -33,12 +33,17 @@ function encodeWorkoutFIT(w){
   const customIds = {};
   let nextCustom = 0;
   const steps = expandWorkout(w).map(st=>{
-    if(st.restSecs) return {title:null, dur:0, val:st.restSecs*1000, int:1, cat:0xFFFF, ex:0xFFFF};
+    if(st.restSecs) return {title:null, dur:0, val:st.restSecs*1000, int:1, cat:0xFFFF, ex:0xFFFF, wt:0xFFFF, wu:2};
     const e = st.e, fx = FITX[e.n];
     let cat, ex;
     if(fx){ cat = fx[0]; ex = fx[1]; }
     else { if(!(e.n in customIds)) customIds[e.n] = nextCustom++; cat = 0xFFFE; ex = customIds[e.n]; }
-    return {title:e.n, dur: e.mode==="time" ? 0 : 29, val: e.mode==="time" ? e.secs*1000 : e.reps, int:0, cat, ex};
+    /* exercise_weight is uint16, scale 100, always kg on the wire;
+       weight_display_unit (fit_base_unit) tells the watch how to show it: 1=kg, 2=lb */
+    const kg = e.wt > 0 ? (e.wu === "kg" ? e.wt : e.wt * 0.45359237) : null;
+    const wt = kg ? Math.min(0xFFFE, Math.round(kg * 100)) : 0xFFFF;
+    return {title:e.n, dur: e.mode==="time" ? 0 : 29, val: e.mode==="time" ? e.secs*1000 : e.reps, int:0, cat, ex,
+            wt, wu: e.wu === "kg" ? 1 : 2};
   });
   while(steps.length && steps[steps.length-1].int === 1) steps.pop();
 
@@ -49,8 +54,8 @@ function encodeWorkoutFIT(w){
   u8(10); u8(20); for(let i=0;i<16;i++) u8(0); u32(32); u16(steps.length); u16(0);
 
   /* workout_step — field set mirrors Garmin Connect exports */
-  def(2, 27, [[254,2,0x84],[7,1,0x00],[3,1,0x00],[4,4,0x86],[19,1,0x00],[20,4,0x86],[1,1,0x00],[2,4,0x86],[10,2,0x84],[11,2,0x84],[13,2,0x84]]);
-  steps.forEach((st,i)=>{ u8(2); u16(i); u8(st.int); u8(0xFF); u32(0); u8(0xFF); u32(0); u8(st.dur); u32(st.val); u16(st.cat); u16(st.ex); u16(2); });
+  def(2, 27, [[254,2,0x84],[7,1,0x00],[3,1,0x00],[4,4,0x86],[19,1,0x00],[20,4,0x86],[1,1,0x00],[2,4,0x86],[10,2,0x84],[11,2,0x84],[12,2,0x84],[13,2,0x84]]);
+  steps.forEach((st,i)=>{ u8(2); u16(i); u8(st.int); u8(0xFF); u32(0); u8(0xFF); u32(0); u8(st.dur); u32(st.val); u16(st.cat); u16(st.ex); u16(st.wt); u16(st.wu); });
 
   /* exercise_title (mesg 264): maps each (category, name) pair to its label */
   const titles = [], seen = new Set();

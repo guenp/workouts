@@ -68,6 +68,7 @@ async function init(){
   if(!state.customEx) state.customEx = [];
   if(!state.exImages) state.exImages = {};
   if(state.defRest == null) state.defRest = 60;
+  if(!state.wtUnit) state.wtUnit = "lb";   /* default unit for newly-entered weights */
   if(state.supRest == null) state.supRest = 10;
   startAnimTicker();
   if(!state.template){
