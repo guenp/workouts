@@ -40,6 +40,11 @@ for (const w of d.workouts || []) {
       reps: e.reps, secs: e.secs, rest: e.rest, ...(e.wt > 0 ? { wt: e.wt, wu: e.wu } : {}),
       ...(e.grp ? { grp: e.grp } : {}) })) },
     ...(cx.length ? { cx } : {}) };
-  console.log(w.name + "\nhttps://guen.pw/workouts/#share=" + encode(payload) + "\n");
+  const s = encode(payload);
+  /* self-verify: round-trip through the app's decode logic */
+  const back = JSON.parse(zlib.inflateRawSync(Buffer.from(s.slice(1).replace(/-/g, "+").replace(/_/g, "/"), "base64")).toString());
+  if (back.v !== 1 || typeof back.w?.name !== "string" || !Array.isArray(back.w?.ex) || !back.w.ex.length)
+    { console.error(`✗ ${w.name}: round-trip verification failed`); process.exit(1); }
+  console.log(w.name + "\nhttps://guen.pw/workouts/#share=" + s + "\n");
 }
 if (fail) process.exit(1);
