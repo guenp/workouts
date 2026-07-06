@@ -23,6 +23,60 @@ function pillTap(){
   if(getMode()==="drive" && DRIVE.status!=="on" && DRIVE.status!=="connecting"){ driveConnect(); }
   else { openDataMenu(); }
 }
+/* ---------- iOS full-page OAuth fallback ----------
+   GIS's popup token flow finishes by navigating its popup to an internal
+   storagerelay:// URL. iOS/iPadOS Safari — and Home Screen web apps in
+   particular — refuse that scheme with "Safari cannot open the page", so the
+   token never reaches the app. On those devices we use the classic
+   implicit-grant *redirect* flow: full-page hop to Google, token returned in
+   the URL hash. REQUIRES the app URL (https://guen.pw/workouts/) to be listed
+   under "Authorized redirect URIs" on the OAuth client in Google Cloud
+   Console — "Authorized JavaScript origins" alone is not enough. */
+function needsRedirectAuth(){
+  const ipadOS = navigator.platform==="MacIntel" && navigator.maxTouchPoints>1; // iPad Safari masquerades as a Mac
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || ipadOS || navigator.standalone===true;
+}
+function appRedirectUri(){ return location.origin + location.pathname.replace(/index\.html$/,""); }
+function redirectAuth(scope, purpose, promptMode){
+  const st = uid();
+  try{ sessionStorage.setItem("oauthPending", JSON.stringify({state:st, purpose, scope})); }catch(e){}
+  const q = new URLSearchParams({client_id:DRIVE.CLIENT_ID, redirect_uri:appRedirectUri(),
+    response_type:"token", scope, state:st, ...(promptMode?{prompt:promptMode}:{})});
+  location.href = "https://accounts.google.com/o/oauth2/v2/auth?" + q.toString();
+}
+/* Parse-time: capture a token returning in the hash and clean the URL.
+   Acting on it (driveInit, resuming the save/open flow) waits until
+   resumeDrive() runs at the end of init(), after local state has loaded. */
+const AUTH_RETURN = (()=>{
+  if(!/access_token=|error=/.test(location.hash)) return null;
+  const h = new URLSearchParams(location.hash.slice(1));
+  let pend = null;
+  try{ pend = JSON.parse(sessionStorage.getItem("oauthPending")); sessionStorage.removeItem("oauthPending"); }catch(e){}
+  if(!pend || pend.state !== h.get("state")) return null;   // not our redirect / stale
+  history.replaceState(null, "", location.pathname + location.search);
+  if(h.get("error")) return {purpose:pend.purpose, error:h.get("error")};
+  return {purpose:pend.purpose, scope:pend.scope, token:h.get("access_token"),
+          expMs: Math.max((+h.get("expires_in")||3600)-300, 60)*1000};
+})();
+function handleAuthReturn(){
+  const a = AUTH_RETURN;
+  if(!a) return false;
+  if(a.error){
+    if(a.purpose==="drive"){ DRIVE.status="error"; render(); }
+    return true;
+  }
+  if(a.purpose==="drive"){
+    DRIVE.token = a.token;
+    try{ localStorage.setItem("driveTok", JSON.stringify({t:a.token, exp:Date.now()+a.expMs, scope:a.scope})); }catch(e){}
+    driveInit();
+    scheduleTokenExpiry(a.expMs);
+    return true;
+  }
+  VIS.token = a.token; setTimeout(()=>VIS.token=null, a.expMs);
+  if(a.purpose==="vis-open") visOpenGo();
+  else if(a.purpose==="vis-save") visSaveGo();
+  return true;
+}
 /* ---------- sync location (Settings → Google Drive settings) ----------
    "appdata" (default): hidden appDataFolder, scope drive.appdata.
    "folder": a visible Drive folder, scope drive.file — either the default
@@ -123,6 +177,7 @@ async function ensureDefaultFolder(f){
 }
 function driveConnect(promptMode){   // promptMode "select_account" → force Google's account chooser
   if(DRIVE.status==="on"){ return; }
+  if(needsRedirectAuth()){ DRIVE.status="connecting"; render(); return redirectAuth(driveScope(), "drive", promptMode); }
   if(!window.google?.accounts){ DRIVE.status="error"; render(); return; }
   DRIVE.status="connecting"; render();
   const tc = google.accounts.oauth2.initTokenClient({
@@ -148,6 +203,7 @@ function scheduleTokenExpiry(ms){
 /* On startup: reuse the saved token if it hasn't expired (~1h), else show
    Reconnect. Called from init() AFTER local state has loaded. */
 function resumeDrive(){
+  if(handleAuthReturn()) return;   // just came back from a full-page OAuth redirect (iOS)
   if(getMode()!=="drive") return;
   let saved = null;
   try{ saved = JSON.parse(localStorage.getItem("driveTok")); }catch(e){}
@@ -192,8 +248,9 @@ const VIS = {
   get fileId(){ try{ return localStorage.getItem("visFileId"); }catch(e){ return null; } },
   set fileId(v){ try{ v ? localStorage.setItem("visFileId", v) : localStorage.removeItem("visFileId"); }catch(e){} }
 };
-function visToken(cb){
+function visToken(cb, purpose){
   if(VIS.token) return cb();
+  if(needsRedirectAuth()) return redirectAuth(VIS.SCOPE, purpose);  // resumes via handleAuthReturn()
   if(!window.google?.accounts){
     openSheet(`<h3>Google sign-in not loaded yet</h3><p class="sub">Check your connection and try again in a moment.</p>
       <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
@@ -229,7 +286,9 @@ function saveVis(){
 }
 function doSaveVis(){
   closeSheet();
-  visToken(async ()=>{
+  visToken(visSaveGo, "vis-save");
+}
+async function visSaveGo(){
     if(visUseDefault()){
       try{ visUpload(await ensureDefaultFolder(vfetch)); }
       catch(e){ console.error(e); visUpload(null); }
@@ -244,7 +303,6 @@ function doSaveVis(){
         p.setVisible(true);
       } else visUpload(null);
     });
-  });
 }
 /* Each manual save gets its own timestamped file so old saves stay
    distinguishable in the open-file list (local time, like todayKey). */
@@ -273,7 +331,9 @@ function openVis(){
 }
 function doOpenVis(){
   closeSheet();
-  visToken(async ()=>{
+  visToken(visOpenGo, "vis-open");
+}
+async function visOpenGo(){
     if(visUseDefault()){
       try{
         const fid = await ensureDefaultFolder(vfetch);
@@ -305,7 +365,6 @@ function doOpenVis(){
       else openSheet(`<h3>No file yet</h3><p class="sub">Save to Drive first to create a file. To browse and open shared files, the app needs a Google Picker API key: set the PICKER_API_KEY repo secret (setup steps in the comment above <code>VIS</code> in js/04-drive.js).</p>
         <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
     });
-  });
 }
 async function visDownload(id){
   try{
