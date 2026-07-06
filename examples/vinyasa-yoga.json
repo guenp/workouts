@@ -426,11 +426,6 @@
   ],
   "customEx": [
     {
-      "n": "Chaturanga",
-      "c": "yoga",
-      "t": 1
-    },
-    {
       "n": "Child's Pose to Push-Up",
       "c": "yoga"
     },
@@ -440,16 +435,6 @@
     },
     {
       "n": "Crescent Lunge to Arrowhead",
-      "c": "yoga",
-      "t": 1
-    },
-    {
-      "n": "Revolved Side Angle",
-      "c": "yoga",
-      "t": 1
-    },
-    {
-      "n": "Halfway Lift",
       "c": "yoga",
       "t": 1
     }
