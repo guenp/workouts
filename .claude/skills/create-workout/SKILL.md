@@ -38,7 +38,7 @@ Payload: `{"v": 1, "w": {"name", "ex": [ …exercises… ]}, "cx": [ …custom e
 Don't hand-roll the encoding — run the bundled script:
 
 ```bash
-node scripts/share-link.mjs <import-file.json> [workout-id]
+node .claude/skills/create-workout/scripts/share-link.mjs <import-file.json> [workout-id]
 ```
 
 It validates exercise names/categories against the real `EXLIB`, builds the payload (including `cx`), and prints one share URL per workout (or just the one matching `workout-id`).
