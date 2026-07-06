@@ -307,6 +307,7 @@ function woOverviewHTML(){
   <div style="display:flex;gap:8px;margin:10px 0 4px">
     <button class="iconbtn" onclick="openRenameWo()" title="Rename" data-tip="Rename workout" aria-label="Rename">${ICON.pencil}</button>
     <button class="iconbtn" onclick="openWoAdd(woViewId)" title="Add to plan" data-tip="Add to plan (today, a date, or weekly)" aria-label="Add to plan" style="font-size:18px;color:var(--sage)">+</button>
+    <button class="iconbtn" onclick="openShareWo()" title="Share" data-tip="Share this workout (link or Drive file)" aria-label="Share" ${w.exercises.length?"":"disabled"}>${ICON.share}</button>
     <button class="iconbtn" onclick="downloadFit()" title="Download .fit" data-tip="Download Garmin workout (.fit) for your watch" aria-label="Download FIT">${ICON.down}</button>
     <button class="iconbtn" onclick="delWoId=woViewId;confirmDeleteWo()" title="Delete" data-tip="Delete workout" aria-label="Delete">${ICON.trash}</button>
   </div>
@@ -607,3 +608,140 @@ function removeEx(){
   save(); closeSheet(); render();
 }
 
+
+/* ---------- sharing a workout ----------
+   Two paths, both reachable from the Share button on the workout overview:
+
+   1. Share link (no account needed): the workout — plus any custom exercises
+      it references — is JSON-serialized, deflate-compressed (CompressionStream
+      when available, plain base64 otherwise; the first character tags which),
+      base64url-encoded, and put in the URL hash as #share=... . init() calls
+      handleShareLink() which decodes it and offers "Add to my workouts".
+      exImages (data URLs) are deliberately excluded: they'd blow past sane
+      URL lengths. The hash never collides with the OAuth redirect hash
+      (that one matches access_token=/error=).
+
+   2. Drive file: shareWoDrive() (04-drive.js) uploads a single-workout,
+      importFlow-compatible JSON — photos included — and makes it
+      anyone-with-link readable.
+
+   Decoded payloads are attacker-controllable: every field is sanitized in
+   importSharedWo() (names length-capped and only ever rendered via esc(),
+   numbers clamped, categories validated, grp reduced to alphanumerics). */
+function appShareBase(){
+  /* In artifacts / file:// previews location.origin is useless — point the
+     link at the live site instead so it still opens for the recipient. */
+  return /^https?:$/.test(location.protocol) ? location.origin + location.pathname : "https://guen.pw/workouts/";
+}
+function shareUsedCustomEx(w){
+  const names = new Set(w.exercises.map(e=>e.n));
+  return (state.customEx||[]).filter(x=>names.has(x.n));
+}
+function shareWoPayload(w){
+  const cx = shareUsedCustomEx(w);
+  return {v:1,
+    w:{name:w.name, ex:w.exercises.map(e=>({n:e.n, c:e.c, mode:e.mode, sets:e.sets, reps:e.reps, secs:e.secs, rest:e.rest, ...(e.grp?{grp:e.grp}:{})}))},
+    ...(cx.length?{cx}:{})};
+}
+function b64urlEncode(bytes){
+  let bin = ""; bytes.forEach(b=>bin+=String.fromCharCode(b));
+  return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function b64urlDecode(s){
+  const bin = atob(s.replace(/-/g,"+").replace(/_/g,"/"));
+  return Uint8Array.from(bin, c=>c.charCodeAt(0));
+}
+async function shareEncode(obj){
+  const raw = new TextEncoder().encode(JSON.stringify(obj));
+  if(window.CompressionStream){
+    const buf = await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer();
+    return "z" + b64urlEncode(new Uint8Array(buf));
+  }
+  return "j" + b64urlEncode(raw);
+}
+async function shareDecode(s){
+  const tag = s[0], bytes = b64urlDecode(s.slice(1));
+  let raw;
+  if(tag === "z"){
+    if(!window.DecompressionStream) throw new Error("no DecompressionStream");
+    raw = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer();
+  } else if(tag === "j"){ raw = bytes; }
+  else throw new Error("bad tag");
+  return JSON.parse(new TextDecoder().decode(raw));
+}
+let shareUrl = null;
+async function openShareWo(){
+  const w = woById(woViewId); if(!w || !w.exercises.length) return;
+  shareUrl = appShareBase() + "#share=" + await shareEncode(shareWoPayload(w));
+  openSheet(`
+    <h3>Share "${esc(w.name)}"</h3>
+    <p class="sub">Anyone opening this link gets an "Add to my workouts" prompt — no account needed. Exercise photos aren't included in the link (the Drive file has them).</p>
+    <input class="field" readonly value="${esc(shareUrl)}" onclick="this.select()">
+    <button class="primary" onclick="shareWoLinkGo()">${navigator.share ? "Share link" : "Copy link"}</button>
+    <button class="sheet-btn" style="margin-top:8px" onclick="shareWoDrive('${w.id}')"><span>${ICON.cloud}</span> Share via Drive file…</button>`);
+}
+async function shareWoLinkGo(){
+  if(!shareUrl) return closeSheet();
+  try{
+    if(navigator.share){ await navigator.share({title:"Workout", url:shareUrl}); closeSheet(); return; }
+  }catch(e){ if(e.name === "AbortError") return; }
+  let copied = false;
+  try{ await navigator.clipboard.writeText(shareUrl); copied = true; }catch(e){}
+  openSheet(`<h3>${copied ? "Link copied" : "Copy the link"}</h3>
+    <p class="sub">${copied ? "Paste it anywhere — chat, email, a note." : "Clipboard access was blocked — long-press the link below to copy it."}</p>
+    <input class="field" readonly value="${esc(shareUrl)}" onclick="this.select()">
+    <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.check}</span> Done</button>`);
+}
+/* ---- receiving a shared link (called from init()) ---- */
+async function handleShareLink(){
+  const m = /^#share=([A-Za-z0-9_-]+)$/.exec(location.hash);
+  if(!m) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  let p = null;
+  try{ p = await shareDecode(m[1]); }catch(e){ console.error(e); }
+  if(!p || p.v !== 1 || !p.w || typeof p.w.name !== "string" || !Array.isArray(p.w.ex) || !p.w.ex.length){
+    return openSheet(`<h3>Couldn't open that link</h3>
+      <p class="sub">The shared-workout link is incomplete or from a newer version of the app.</p>
+      <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
+  }
+  window._pendingShare = p;
+  const names = p.w.ex.map(e=>String(e?.n||"")).join(" · ").slice(0, 160);
+  openSheet(`<h3>Workout shared with you</h3>
+    <p class="sub"><b>${esc(String(p.w.name).slice(0,120))}</b> · ${p.w.ex.length} exercise${p.w.ex.length===1?"":"s"}</p>
+    <p class="sub">${esc(names)}</p>
+    <button class="primary" onclick="importSharedWo()">Add to my workouts</button>
+    <button class="sheet-btn" style="margin-top:8px" onclick="window._pendingShare=null;closeSheet()"><span>${ICON.back}</span> No thanks</button>`);
+}
+function sanitizeSharedEx(e){
+  e = e || {};
+  const num = (v, lo, hi, d) => { v = Math.round(+v); return isFinite(v) && v >= lo && v <= hi ? v : d; };
+  const out = {
+    n: String(e.n || "Exercise").slice(0, 80),
+    c: EXCAT[e.c] ? e.c : "core",
+    mode: e.mode === "time" ? "time" : "reps",
+    sets: num(e.sets, 1, 50, 3),
+    reps: num(e.reps, 1, 500, 10),
+    secs: num(e.secs, 1, 7200, 30),
+    rest: num(e.rest, 0, 3600, state.defRest ?? 60)
+  };
+  if(e.grp){
+    const g = String(e.grp).replace(/[^a-zA-Z0-9]/g, "").slice(0, 12);
+    if(g) out.grp = g;
+  }
+  return out;
+}
+function importSharedWo(){
+  const p = window._pendingShare; window._pendingShare = null;
+  if(!p) return closeSheet();
+  const w = {id: uid(), name: String(p.w.name).slice(0, 120), exercises: p.w.ex.map(sanitizeSharedEx)};
+  const have = new Set((state.customEx||[]).map(x=>x.n));
+  (Array.isArray(p.cx) ? p.cx : []).forEach(x=>{
+    if(x && typeof x.n === "string"){
+      const n = x.n.slice(0, 80);
+      if(n && !have.has(n)){ state.customEx.push({n, c: EXCAT[x.c] ? x.c : "core", ...(x.t?{t:1}:{})}); have.add(n); }
+    }
+  });
+  state.workouts.push(w);
+  save(); closeSheet();
+  tab = "workouts"; woViewId = w.id; render();
+}

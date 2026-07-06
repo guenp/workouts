@@ -80,6 +80,9 @@ async function init(){
      compares remote savedAt against the empty default state and can lose
      the newer local copy (or local load can overwrite the remote one). */
   resumeDrive();
+  /* After local state is loaded (a share import mutates state) and after
+     resumeDrive() has consumed any OAuth-redirect hash. */
+  handleShareLink();
 }
 function weekKeyOf(date){
   const m = new Date(date); m.setDate(m.getDate() - ((m.getDay()+6)%7));

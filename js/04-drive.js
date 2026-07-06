@@ -75,6 +75,7 @@ function handleAuthReturn(){
   VIS.token = a.token; setTimeout(()=>VIS.token=null, a.expMs);
   if(a.purpose==="vis-open") visOpenGo();
   else if(a.purpose==="vis-save") visSaveGo();
+  else if(a.purpose==="wo-share") woShareDriveGo();
   return true;
 }
 /* ---------- sync location (Settings → Google Drive settings) ----------
@@ -376,6 +377,60 @@ async function visDownload(id){
     openSheet(`<h3>Couldn't open that file</h3><p class="sub">It doesn't look like a Health Tracker data file.</p>
       <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
   }
+}
+/* ---------- share one workout as a Drive file ----------
+   Uploads an importFlow-compatible {workouts:[w], customEx, exImages} JSON
+   (photos included, unlike the URL share) to the default "workouts" folder
+   and makes it anyone-with-link readable, so the Drive link works for people
+   the file wasn't explicitly shared with. Recipients download the file and
+   use Settings → Import file / Paste data. The pending workout id lives in
+   sessionStorage so the flow survives the iOS full-page OAuth redirect
+   (resumed via the "wo-share" purpose in handleAuthReturn). */
+function shareWoDrive(id){
+  try{ sessionStorage.setItem("woSharePending", id); }catch(e){}
+  closeSheet();
+  visToken(woShareDriveGo, "wo-share");
+}
+async function woShareDriveGo(){
+  let id = null; try{ id = sessionStorage.getItem("woSharePending"); }catch(e){}
+  const w = woById(id); if(!w) return;
+  try{
+    const names = new Set(w.exercises.map(e=>e.n));
+    const body = {
+      workouts: [w],
+      customEx: (state.customEx||[]).filter(x=>names.has(x.n)),
+      exImages: Object.fromEntries(Object.entries(state.exImages||{}).filter(([n])=>names.has(n)))
+    };
+    const safe = w.name.replace(/[^\w\- ]+/g,"").trim().replace(/\s+/g,"-").slice(0,40) || "workout";
+    const meta = {name:`workout-${safe}.json`};
+    try{ meta.parents = [await ensureDefaultFolder(vfetch)]; }catch(e){ console.error(e); }
+    const m = await (await vfetch("https://www.googleapis.com/drive/v3/files",
+      {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(meta)})).json();
+    if(!m.id) throw new Error("create failed");
+    await vfetch(`https://www.googleapis.com/upload/drive/v3/files/${m.id}?uploadType=media`,
+      {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    await vfetch(`https://www.googleapis.com/drive/v3/files/${m.id}/permissions`,
+      {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({role:"reader", type:"anyone"})});
+    /* Drive ids are URL-safe (letters, digits, - _): fine in the attribute. */
+    window._woShareLink = `https://drive.google.com/file/d/${m.id}/view`;
+    openSheet(`<h3>Workout file on Drive</h3>
+      <p class="sub">${esc(meta.name)} is link-shareable — anyone with the link can view it. Recipients download the file and use Settings → "Import file" (or "Paste data"). Exercise photos are included.</p>
+      <input class="field" readonly value="${window._woShareLink}" onclick="this.select()">
+      <button class="primary" onclick="copyWoShareLink()">${navigator.share ? "Share link" : "Copy link"}</button>
+      <button class="sheet-btn" style="margin-top:8px" onclick="closeSheet()"><span>${ICON.check}</span> Done</button>`);
+  }catch(e){
+    console.error(e);
+    openSheet(`<h3>Couldn't share via Drive</h3><p class="sub">Drive didn't respond — check your connection and try again.</p>
+      <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
+  }
+}
+async function copyWoShareLink(){
+  const url = window._woShareLink; if(!url) return closeSheet();
+  try{
+    if(navigator.share){ await navigator.share({url}); closeSheet(); return; }
+  }catch(e){ if(e.name === "AbortError") return; }
+  try{ await navigator.clipboard.writeText(url); }catch(e){}
+  closeSheet();
 }
 async function dfetch(url, opts={}){
   const r = await fetch(url, {...opts, headers:{...(opts.headers||{}), Authorization:"Bearer "+DRIVE.token}});
