@@ -19,6 +19,18 @@ OUT=dist/health-companion-drive.html
   # body scaffolding: from <body> up to the first module <script src=
   sed -n '/<body>/,/<script src="js\//p' index.html | sed '$d' | sed '/^<!--/,/-->/d'
   echo '<script>'
+  # Embed the examples/ JSON so "Load examples" works offline in this
+  # single-file build (the modular hosted app fetches them instead).
+  echo '/* ===== embedded examples ===== */'
+  echo 'var EXAMPLE_DATA = {'
+  first=1
+  for f in examples/*.json; do
+    [ "$first" = 1 ] || echo ','
+    first=0
+    printf '"%s": ' "$f"
+    cat "$f"
+  done
+  echo '};'
   for f in js/*.js; do
     echo "/* ===== $f ===== */"
     cat "$f"

@@ -227,7 +227,11 @@ async function loadExamples(){
   let files;
   try{
     files = await Promise.all(EXAMPLE_FILES.map(u =>
-      fetch(u, {cache:"no-store"}).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); })
+      /* Single-file builds embed the JSON (see build.sh); the hosted modular
+         app has no EXAMPLE_DATA and fetches from the examples/ folder. */
+      (typeof EXAMPLE_DATA !== "undefined" && EXAMPLE_DATA[u])
+        ? Promise.resolve(EXAMPLE_DATA[u])
+        : fetch(u, {cache:"no-store"}).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); })
     ));
   }catch(e){ return exampleLoadError(); }
 
@@ -254,7 +258,7 @@ async function loadExamples(){
 function exampleLoadError(){
   openSheet(`
     <h3>Couldn't load examples</h3>
-    <p class="sub">The sample files couldn't be fetched. They're served from the app's <b>examples/</b> folder, so this works on the hosted site (guen.pw/workouts) but not in a single-file/offline build. Check your connection and try again.</p>
+    <p class="sub">The sample files couldn't be loaded. On the hosted site they're fetched from the app's <b>examples/</b> folder — check your connection and try again.</p>
     <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>
   `);
 }
