@@ -550,7 +550,7 @@ function exViewHTML(e){
   if(hasG) notes.push(`animation \u00a9 Garmin Ltd. (<a href="${m.page}" target="_blank" style="color:var(--sage)">Garmin Connect</a>, personal use)`);
   if(m === "err" && GC[e.n] && !custom && !fe && !yoga) notes.push(`<a href="${GC_PAGE + GC[e.n]}" target="_blank" style="color:var(--sage)">View on Garmin Connect \u2192</a>`);
   if(!custom && fe) notes.push(`photos: free-exercise-db (public domain)`);
-  if(!custom && !fe && yoga) notes.push(`pose art: <a href="https://github.com/alexcumplido/yoga-api" target="_blank" style="color:var(--sage)">Yoga API</a> · CC0 / Flaticon (monkik, dDara)`);
+  if(!custom && !fe && yoga) notes.push(YOGADB[e.n].credit || `pose art: <a href="https://github.com/alexcumplido/yoga-api" target="_blank" style="color:var(--sage)">Yoga API</a> · CC0 / Flaticon (monkik, dDara)`);
   if(!GC[e.n]) notes.push(`custom / non-Garmin exercise \u2014 exports as a text-only step`);
   return `
     <div class="exsplit">
