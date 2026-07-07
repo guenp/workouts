@@ -239,7 +239,17 @@
           "grp": "exgrpp2b"
         },
         {
-          "n": "Crescent Lunge to Arrowhead",
+          "n": "Crescent Lunge",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 20,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Arrowhead",
           "c": "yoga",
           "mode": "time",
           "sets": 2,
@@ -446,11 +456,5 @@
       ]
     }
   ],
-  "customEx": [
-    {
-      "n": "Crescent Lunge to Arrowhead",
-      "c": "yoga",
-      "t": 1
-    }
-  ]
+  "customEx": []
 }
