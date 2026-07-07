@@ -277,15 +277,19 @@ function renameFolder(id){
 }
 function confirmDeleteFolder(){
   const f = folderById(delFolderId);
+  const n = state.workouts.filter(w=>w.folderId===delFolderId).length;
   openSheet(`
     <h3>Delete "${esc(f.name)}"?</h3>
-    <p class="sub">Workouts inside are kept and move out of the folder.</p>
-    <button class="primary" style="background:var(--bad)" onclick="deleteFolder()">Delete folder</button>
+    <p class="sub">${n ? `This folder has ${n} workout${n===1?"":"s"} inside.` : "Workouts inside are kept and move out of the folder."}</p>
+    ${n ? `<button class="primary" style="background:var(--bad)" onclick="deleteFolder(true)">Delete folder and ${n} workout${n===1?"":"s"}</button>
+    <button class="sheet-btn" style="margin-top:8px" onclick="deleteFolder(false)">Delete folder, keep workouts</button>`
+    : `<button class="primary" style="background:var(--bad)" onclick="deleteFolder(false)">Delete folder</button>`}
     <button class="sheet-btn" style="margin-top:8px" onclick="closeSheet()"><span>${ICON.back}</span> Cancel</button>
   `);
 }
-function deleteFolder(){
-  state.workouts.forEach(w=>{ if(w.folderId===delFolderId) w.folderId = null; });
+function deleteFolder(withWorkouts){
+  if(withWorkouts) state.workouts = state.workouts.filter(w=>w.folderId!==delFolderId);
+  else state.workouts.forEach(w=>{ if(w.folderId===delFolderId) w.folderId = null; });
   state.woFolders = state.woFolders.filter(f=>f.id!==delFolderId);
   delFolderId = null;
   save(); closeSheet(); render();
