@@ -59,7 +59,7 @@ function openDataMenu(){
       <button class="sheet-btn" onclick="chooseSyncFolder()"><span>${ICON.folder}</span> Choose a custom folder…</button>
       ${syncFolderPref() ? `<button class="sheet-btn" onclick="resetSyncFolder()"><span>${ICON.back}</span> Use default folder (workouts)</button>` : ""}
     ` : `<p class="sub">Hidden app data is invisible in Drive and private to this app. Choose "Drive folder" to sync to a visible health-tracker.json instead${getMode()==="drive"?" (you'll be asked to reconnect)":""}.</p>`}
-    <button class="sheet-btn" onclick="loadExample()"><span>${ICON.spark}</span> Load example plan</button>
+    <button class="sheet-btn" onclick="loadExamples()"><span>${ICON.spark}</span> Load examples</button>
     <button class="sheet-btn danger" onclick="confirmClear()"><span>${ICON.trash}</span> Clear all data</button>
     <div id="verFoot">${verFooterHTML()}</div>
   `);
@@ -116,7 +116,8 @@ function importText(text){
   let parsed; try{ parsed = JSON.parse(text); }catch(e){ return badImport(); }
   importFlow(parsed);
 }
-function importFlow(parsed){
+let impCtx = null;   /* optional {title, sub, btn} to reword the picker (e.g. for examples) */
+function importFlow(parsed, ctx){
   if(!parsed || typeof parsed !== "object") return badImport();
   impHas = {
     workouts: Array.isArray(parsed.workouts),
@@ -129,14 +130,20 @@ function importFlow(parsed){
   if(!Object.values(impHas).some(Boolean)) return badImport();
   window._pendingUpload = parsed;
   impSel = {...impHas};
+  impCtx = ctx || null;
   renderImportSheet();
 }
 function renderImportSheet(){
+  const c = impCtx || {
+    title:"Import data",
+    sub:"This file contains the sections below — choose what to import. Workouts and tags are added to yours; plans and same-date entries are overwritten.",
+    btn:"Import selected"
+  };
   openSheet(`
-    <h3>Import data</h3>
-    <p class="sub">This file contains the sections below — choose what to import. Workouts and tags are added to yours; plans and same-date entries are overwritten.</p>
+    <h3>${esc(c.title)}</h3>
+    <p class="sub">${esc(c.sub)}</p>
     <div class="chips">${SECTIONS.filter(([k])=>impHas[k]).map(([k,l])=>`<button class="${impSel[k]?'on':''}" onclick="impSel['${k}']=!impSel['${k}'];renderImportSheet()">${l}</button>`).join("")}</div>
-    <button class="primary" onclick="applyImport()">Import selected</button>
+    <button class="primary" onclick="applyImport()">${esc(c.btn)}</button>
     <button class="sheet-btn" style="margin-top:8px" onclick="window._pendingUpload=null;closeSheet()"><span>${ICON.back}</span> Cancel</button>
   `);
 }
@@ -202,64 +209,54 @@ function clearAll(){
   materializeToday();
   save(); closeSheet(); render();
 }
-function loadExample(){
-  state.tags = ["Low energy","Headache","Poor sleep","Nausea","Stressed","Sore muscles"];
-  if(!(state.workouts||[]).length){
-    const exFolder = {id:uid(), name:"Examples", open:true};
-    state.woFolders = [...(state.woFolders||[]), exFolder];
-    const mkEx = (n,sets,val,rest)=>{ const l = EXLIB.find(x=>x.n===n);
-      return {n, c:l.c, mode:l.t?"time":"reps", sets, reps:l.t?10:val, secs:l.t?val:30, rest}; };
-    state.workouts = [
-      {id:uid(), name:"Full body strength", exercises:[
-        mkEx("Goblet Squat",3,12,60), mkEx("Lunge",3,10,60),
-        mkEx("Biceps Curl",3,12,45), mkEx("Triceps Dip",3,10,45),
-        mkEx("Plank",3,40,30), mkEx("Dead Bug",3,10,30),
-        mkEx("Hamstring Stretch",1,45,0), mkEx("Foam Roll Quads",1,60,0), mkEx("Foam Roll Back",1,60,0)]},
-      {id:uid(), name:"Yoga flow", exercises:[
-        mkEx("Cat Cow",1,60,0), mkEx("Downward Dog",1,45,0), mkEx("Warrior II",2,30,0),
-        mkEx("Cobra Pose",1,30,0), mkEx("Pigeon Pose",2,45,0), mkEx("Child's Pose",1,60,0)]},
-      {id:uid(), name:"Pilates", exercises:[
-        mkEx("Hundred",1,60,15), mkEx("Roll Up",2,8,15), mkEx("Single Leg Circle",2,8,15),
-        mkEx("Scissor Kick",2,10,15), mkEx("Swimming",2,30,15), mkEx("Criss Cross",2,10,15)]},
-      {id:uid(), name:"Upper body", exercises:[
-        mkEx("Push Up",3,12,60), mkEx("Bent Over Row",3,12,60),
-        mkEx("Overhead Press",3,10,60), mkEx("Lateral Raise",3,12,45), mkEx("Triceps Extension",3,12,45)]},
-      {id:uid(), name:"HIIT cardio", exercises:[
-        mkEx("Jumping Jacks",3,40,20), mkEx("High Knees",3,30,20),
-        mkEx("Burpee",3,10,30), mkEx("Mountain Climber",3,30,20), mkEx("Jump Rope",3,60,30)]},
-      {id:uid(), name:"Foam roll recovery", exercises:[
-        mkEx("Foam Roll Quads",1,60,0), mkEx("Foam Roll Hamstrings",1,60,0),
-        mkEx("Foam Roll Calves",1,60,0), mkEx("Foam Roll Back",1,60,0), mkEx("Hip Flexor Stretch",2,45,0)]}
-    ];
-    state.workouts.forEach(w=>w.folderId = exFolder.id);
+/* Sample data lives as importable JSON in the repo's examples/ folder (served
+   statically alongside the app). We fetch them, merge into one import payload,
+   and route through the normal selective-import picker so the user chooses
+   exactly what to load. All example workouts are collected into one "Examples"
+   folder (the per-file folders in the JSON are ignored). Stable ids mean
+   loading twice won't create duplicates. */
+const EXAMPLE_FILES = [
+  "examples/seven-minute-workouts.json",
+  "examples/strength-routines.json",
+  "examples/vinyasa-yoga.json",
+  "examples/weekly-plan.json"
+];
+const EXAMPLES_FOLDER = {id:"exfolder", name:"Examples", open:true};
+async function loadExamples(){
+  openSheet(`<h3>Load examples</h3><p class="sub">Fetching sample data…</p>`);
+  let files;
+  try{
+    files = await Promise.all(EXAMPLE_FILES.map(u =>
+      fetch(u, {cache:"no-store"}).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); })
+    ));
+  }catch(e){ return exampleLoadError(); }
+
+  const merged = {app:"health-tracker", sevV2:true, workouts:[], woFolders:[EXAMPLES_FOLDER], customEx:[], tags:[]};
+  const seenEx = new Set();
+  for(const f of files){
+    if(!f || typeof f !== "object") continue;
+    if(Array.isArray(f.workouts))
+      for(const w of f.workouts) merged.workouts.push({...w, folderId:EXAMPLES_FOLDER.id});
+    if(Array.isArray(f.customEx))
+      for(const x of f.customEx){ if(x && x.n && !seenEx.has(x.n)){ seenEx.add(x.n); merged.customEx.push(x); } }
+    if(f.template) merged.template = f.template;           // last one wins; only weekly-plan has it
+    if(Array.isArray(f.tags)) merged.tags.push(...f.tags);
+    if(f.goal != null) merged.goal = f.goal;
   }
-  if(!state.workouts.some(w=>w.name==="7-Minute Workout")){
-    const nf = {id:uid(), name:"NYT 7-minute Workout", open:true};
-    state.woFolders.push(nf);
-    const t = (n,secs,rest)=>{ const l = EXLIB.find(x=>x.n===n);
-      return {n, c:l.c, mode:"time", sets:1, reps:10, secs, rest}; };
-    state.workouts.push(
-      {id:uid(), folderId:nf.id, name:"7-Minute Workout", exercises:[
-        t("Jumping Jacks",30,10), t("Wall Squat",30,10), t("Push Up",30,10), t("Crunch",30,10),
-        t("Step Up",30,10), t("Squat",30,10), t("Triceps Dip",30,10), t("Plank",30,10),
-        t("High Knees",30,10), t("Lunge",30,10), t("Push Up with Rotation",30,10), t("Side Plank",30,0)]},
-      {id:uid(), folderId:nf.id, name:"Advanced 7-Minute Workout", exercises:[
-        t("Reverse Lunge with Rotation",30,0), t("Lateral Pillar Bridge",30,0), t("Push-Up to Row to Burpee",60,0),
-        t("Lateral Pillar Bridge",30,0), t("Single Leg RDL to Curl to Press",60,0), t("Single Leg RDL to Curl to Press",60,0),
-        t("Plank with Arm Lift",30,0), t("Lateral Lunge to Overhead Triceps Extension",60,0), t("Bent Over Row",60,0)]}
-    );
-  }
-  state.template = {};
-  for(let d=0; d<7; d++){
-    state.template[d] = [...(DEFAULT_TEMPLATE[d]||[]), ...DAILY].map(x=>({...x, id:uid()}));
-  }
-  const k = todayKey(), day = state.days[k];
-  const keep = day ? {orange:day.orange, gut:day.gut} : {orange:0, gut:[]};
-  state.days[k] = {
-    items: state.template[new Date().getDay()].map(t=>({...t, tid:t.id, id:uid(), status:"planned", actual:""})),
-    ...keep
-  };
-  save(); closeSheet(); render();
+  merged.tags = [...new Set(merged.tags)];
+
+  importFlow(merged, {
+    title:"Load examples",
+    sub:'Choose exactly what to load. Sample workouts go into an "Examples" folder and are added to yours; loading the daily plan replaces your weekly template.',
+    btn:"Load selected"
+  });
+}
+function exampleLoadError(){
+  openSheet(`
+    <h3>Couldn't load examples</h3>
+    <p class="sub">The sample files couldn't be fetched. They're served from the app's <b>examples/</b> folder, so this works on the hosted site (guen.pw/workouts) but not in a single-file/offline build. Check your connection and try again.</p>
+    <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>
+  `);
 }
 let tagReturnToEdit = false;
 function openAddTag(fromEdit){
