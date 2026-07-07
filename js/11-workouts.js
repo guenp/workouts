@@ -418,7 +418,7 @@ function deleteWo(){
   save(); closeSheet(); render();
 }
 /* exercise picker */
-function openExPicker(){ exQ=""; exCat="all"; renderExPicker(); }
+function openExPicker(){ exSwapMode=false; exQ=""; exCat="all"; renderExPicker(); }
 function pickerList(){
   return [...EXLIB, ...(state.customEx||[]).map(x=>({...x, custom:true}))];
 }
@@ -427,7 +427,8 @@ function exListHTML(){
   const list = all.filter(e=>(exCat==="all"||e.c===exCat) && e.n.toLowerCase().includes(exQ.toLowerCase()));
   return list.map(e=>{
     const count = w.exercises.filter(x=>x.n===e.n).length;
-    return `<button class="item" onclick="addEx(${all.indexOf(e)})">
+    const act = exSwapMode ? `swapEx(${all.indexOf(e)})` : `addEx(${all.indexOf(e)})`;
+    return `<button class="item" onclick="${act}">
       <div class="exicon">${state.exImages[e.n] ? `<img src="${state.exImages[e.n]}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">` : EXCAT[e.c].icon}</div>
       <div class="tx"><div class="t">${esc(e.n)}</div><div class="d">${EXCAT[e.c].label}${e.custom ? " · custom" : (GC[e.n] ? "" : " · not on Garmin")}</div></div>
       ${e.custom?`<span class="tag">custom</span><span class="minus" style="position:static;transform:none;margin-left:6px" onclick="removeCustomEx(${(state.customEx||[]).findIndex(x=>x.n===e.n)});event.stopPropagation()" onpointerdown="event.stopPropagation()">−</span>`:""}
@@ -476,16 +477,17 @@ function removeCustomEx(i){
   save(); renderExPicker();
 }
 function renderExPicker(){
+  const swap = exSwapMode;
   openSheet(`
-    <h3>Add exercises</h3>
-    <p class="sub">Standard Garmin Connect exercises — tap to add, as many as you like.</p>
+    <h3>${swap ? "Swap exercise" : "Add exercises"}</h3>
+    <p class="sub">${swap ? "Tap an exercise to replace this one — sets, reps and rest are kept." : "Standard Garmin Connect exercises — tap to add, as many as you like."}</p>
     <input class="field" id="exQin" placeholder="Search exercises" value="${esc(exQ)}"
       oninput="exQ=this.value;document.getElementById('exList').innerHTML=exListHTML()">
     <div class="chips">${["all",...Object.keys(EXCAT)].map(c=>
       `<button class="${exCat===c?'on':''}" onclick="exCat='${c}';renderExPicker()">${c==="all"?"All":EXCAT[c].label}</button>`).join("")}</div>
     <button class="sheet-btn" style="margin:2px 0 8px" onclick="openNewExercise()"><span style="color:var(--sage)">+</span> Create custom exercise</button>
     <div class="card exlist" id="exList">${exListHTML()}</div>
-    <button class="primary" style="margin-top:12px" onclick="closeSheet();render()">Done</button>
+    <button class="primary" style="margin-top:12px" onclick="${swap ? "exSwapMode=false;renderExEdit()" : "closeSheet();render()"}">${swap ? "Cancel" : "Done"}</button>
   `);
 }
 function addEx(libIdx){
@@ -498,9 +500,39 @@ function addEx(libIdx){
 function openExEdit(i){
   const n = curWo()?.exercises.length || 0;
   if(i < 0 || i >= n) return;
-  exIdx = i; exEditMode = false; exMediaView = null; renderExEdit();
+  exIdx = i; exEditMode = false; exMediaView = null; exRenaming = false; renderExEdit();
 }
-let exEditMode = false, exMediaView = null;
+let exEditMode = false, exMediaView = null, exRenaming = false, exSwapMode = false;
+/* Swap the exercise at exIdx for another from the library, keeping its
+   sets/reps/rest/weight/superset config. */
+function swapEx(libIdx){
+  const l = pickerList()[libIdx], w = curWo(), e = w?.exercises[exIdx];
+  if(!l || !e) return;
+  e.n = l.n; e.c = l.c; e.mode = l.t ? "time" : "reps";
+  save(); exSwapMode = false; renderExEdit();
+}
+function openSwapPicker(){ exSwapMode = true; exQ = ""; exCat = "all"; renderExPicker(); }
+/* Rename a custom exercise everywhere it's referenced: the customEx entry,
+   every workout that uses it, and its photo key. Returns false on empty name
+   or a collision with an existing exercise. */
+function renameCustomEx(oldN, newN){
+  newN = (newN||"").trim();
+  if(!newN) return false;
+  if(pickerList().some(x=>x.n.toLowerCase()===newN.toLowerCase() && x.n!==oldN)) return false;
+  const cx = (state.customEx||[]).find(x=>x.n===oldN);
+  if(!cx) return false;
+  cx.n = newN;
+  (state.workouts||[]).forEach(w=>(w.exercises||[]).forEach(ex=>{ if(ex.n===oldN) ex.n = newN; }));
+  if(state.exImages[oldN]){ state.exImages[newN] = state.exImages[oldN]; delete state.exImages[oldN]; }
+  save();
+  return true;
+}
+function commitRenameEx(){
+  const inp = document.getElementById("exRenameIn"), e = curWo()?.exercises[exIdx];
+  if(!inp || !e) return;
+  if(!renameCustomEx(e.n, inp.value)){ inp.style.borderColor = "var(--bad)"; return; }
+  exRenaming = false; renderExEdit(); render();
+}
 let exImgTarget = null;
 function setExImgTarget(){ exImgTarget = curWo()?.exercises[exIdx]?.n || null; }
 function uploadExImage(input){
@@ -568,6 +600,7 @@ function renderExEdit(){
   const w = curWo(), e = w.exercises[exIdx];
   if(!e){ closeSheet(); return; }
   const time = e.mode==="time";
+  const isCustom = (state.customEx||[]).some(x=>x.n===e.n);
   openSheet(`
     <div style="display:flex;align-items:flex-start;gap:10px">
       <div style="flex:1">
@@ -580,6 +613,19 @@ function renderExEdit(){
       <button class="iconbtn" onclick="removeEx()" data-tip="Remove from workout" aria-label="Remove">${ICON.trash}</button>
     </div>
     ${exEditMode ? `
+    ${exRenaming ? `
+    <div style="margin-top:10px">
+      <label class="fl">Exercise name</label>
+      <input class="field" id="exRenameIn" value="${esc(e.n)}" placeholder="Exercise name">
+      <div class="sitrow" style="margin-top:8px">
+        <button onclick="commitRenameEx()">Save name</button>
+        <button onclick="exRenaming=false;renderExEdit()">Cancel</button>
+      </div>
+    </div>` : `
+    <div class="sitrow" style="margin-top:10px">
+      <button onclick="openSwapPicker()">⇄ Swap exercise</button>
+      ${isCustom ? `<button onclick="exRenaming=true;renderExEdit()">Rename</button>` : ""}
+    </div>`}
     <div class="seg" style="margin-top:10px">
       <button class="${!time?'on':''}" onclick="exMode('reps')">Reps</button>
       <button class="${time?'on':''}" onclick="exMode('time')">Time</button>
@@ -606,6 +652,7 @@ function renderExEdit(){
     <div id="exMedia">${exViewHTML(e)}</div>
     `}
   `);
+  if(exRenaming) setTimeout(()=>{ const i=document.getElementById("exRenameIn"); if(i){ i.focus(); i.select(); } },50);
   const name = e.n;
   if(!EXMEDIA[name] && GC[name]) loadExMedia(name).then(()=>{
     if(!exEditMode && curWo()?.exercises[exIdx]?.n === name && document.getElementById("exMedia")) renderExEdit();
