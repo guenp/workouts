@@ -1,0 +1,64 @@
+{
+  "app": "health-tracker",
+  "sevV2": true,
+  "goal": 45,
+  "tags": ["Low energy", "Headache", "Poor sleep", "Bloated", "Stressed", "Sore muscles"],
+  "template": {
+    "0": [
+      {"id": "expl0a01", "type": "move", "title": "Rest or easy walk", "detail": "Optional 20 min casual walk or spin"},
+      {"id": "expl0m01", "type": "meal", "title": "Breakfast", "detail": "Overnight oats · chia · blueberries"},
+      {"id": "expl0m02", "type": "meal", "title": "Lunch", "detail": "Leftovers or grain bowl"},
+      {"id": "expl0m03", "type": "meal", "title": "Snack", "detail": "Apple + almonds"},
+      {"id": "expl0m04", "type": "meal", "title": "Dinner", "detail": "Roast veg · chickpeas · couscous"},
+      {"id": "expl0n01", "type": "mind", "title": "Weekly review · 10 min", "detail": "Look at Trends, plan the week ahead"}
+    ],
+    "1": [
+      {"id": "expl1a01", "type": "move", "title": "Full-Body Dumbbell · 30 min", "detail": "See Workouts → Strength"},
+      {"id": "expl1m01", "type": "meal", "title": "Breakfast", "detail": "Greek yogurt · granola · banana"},
+      {"id": "expl1m02", "type": "meal", "title": "Lunch", "detail": "Quinoa bowl · tofu · tahini"},
+      {"id": "expl1m03", "type": "meal", "title": "Snack", "detail": "Banana + peanut butter"},
+      {"id": "expl1m04", "type": "meal", "title": "Dinner", "detail": "Tempeh stir-fry · rice · spinach"},
+      {"id": "expl1n01", "type": "mind", "title": "Breathing · 5 min", "detail": "Slow inhale 4 · exhale 6"}
+    ],
+    "2": [
+      {"id": "expl2a01", "type": "move", "title": "Bike intervals · 30 min", "detail": "5 min warm-up · 8× (1 min hard / 2 min easy) · cooldown"},
+      {"id": "expl2m01", "type": "meal", "title": "Breakfast", "detail": "Overnight oats · chia · blueberries"},
+      {"id": "expl2m02", "type": "meal", "title": "Lunch", "detail": "Lentil soup · sourdough"},
+      {"id": "expl2m03", "type": "meal", "title": "Snack", "detail": "Carrots + hummus"},
+      {"id": "expl2m04", "type": "meal", "title": "Dinner", "detail": "Salmon · potatoes · greens"},
+      {"id": "expl2n01", "type": "mind", "title": "Breathing · 5 min", "detail": "Slow inhale 4 · exhale 6"}
+    ],
+    "3": [
+      {"id": "expl3a01", "type": "move", "title": "Sun Salutation Flow · 15 min", "detail": "See Workouts → Vinyasa Yoga"},
+      {"id": "expl3m01", "type": "meal", "title": "Breakfast", "detail": "Smoothie: spinach · banana · oat milk · protein"},
+      {"id": "expl3m02", "type": "meal", "title": "Lunch", "detail": "Grain bowl · roasted veg · feta"},
+      {"id": "expl3m03", "type": "meal", "title": "Snack", "detail": "Rice cakes + avocado"},
+      {"id": "expl3m04", "type": "meal", "title": "Dinner", "detail": "Chicken or tofu curry · rice"},
+      {"id": "expl3n01", "type": "mind", "title": "Body scan · 10 min", "detail": "Guided or unguided, lying down"}
+    ],
+    "4": [
+      {"id": "expl4a01", "type": "move", "title": "Lower Body & Glutes · 30 min", "detail": "See Workouts → Strength"},
+      {"id": "expl4m01", "type": "meal", "title": "Breakfast", "detail": "Eggs · toast · tomato"},
+      {"id": "expl4m02", "type": "meal", "title": "Lunch", "detail": "Quinoa bowl · tofu · tahini"},
+      {"id": "expl4m03", "type": "meal", "title": "Snack", "detail": "Banana + peanut butter"},
+      {"id": "expl4m04", "type": "meal", "title": "Dinner", "detail": "Pasta · white beans · broccoli"},
+      {"id": "expl4n01", "type": "mind", "title": "Breathing · 5 min", "detail": "Slow inhale 4 · exhale 6"}
+    ],
+    "5": [
+      {"id": "expl5a01", "type": "move", "title": "7-Minute Workout ×2", "detail": "See Workouts → 7-Minute Workouts"},
+      {"id": "expl5m01", "type": "meal", "title": "Breakfast", "detail": "Overnight oats · chia · blueberries"},
+      {"id": "expl5m02", "type": "meal", "title": "Lunch", "detail": "Wrap: hummus · falafel · slaw"},
+      {"id": "expl5m03", "type": "meal", "title": "Snack", "detail": "Dark chocolate + walnuts"},
+      {"id": "expl5m04", "type": "meal", "title": "Dinner", "detail": "Homemade pizza night"},
+      {"id": "expl5n01", "type": "mind", "title": "Unplug hour", "detail": "No screens after dinner"}
+    ],
+    "6": [
+      {"id": "expl6a01", "type": "move", "title": "Long walk or hike · 60 min", "detail": "Easy pace, outdoors"},
+      {"id": "expl6m01", "type": "meal", "title": "Breakfast", "detail": "Pancakes · berries"},
+      {"id": "expl6m02", "type": "meal", "title": "Lunch", "detail": "Out or leftovers"},
+      {"id": "expl6m03", "type": "meal", "title": "Snack", "detail": "Trail mix"},
+      {"id": "expl6m04", "type": "meal", "title": "Dinner", "detail": "Sheet-pan veg · sausages or halloumi"},
+      {"id": "expl6n01", "type": "mind", "title": "Evening Wind-Down · 15 min", "detail": "See Workouts → Vinyasa Yoga"}
+    ]
+  }
+}

@@ -1,0 +1,442 @@
+{
+  "app": "health-tracker",
+  "sevV2": true,
+  "woFolders": [
+    {
+      "id": "exyogfld",
+      "name": "Vinyasa Yoga",
+      "open": true
+    }
+  ],
+  "workouts": [
+    {
+      "id": "exyog001",
+      "folderId": "exyogfld",
+      "name": "Sun Salutation Flow",
+      "exercises": [
+        {
+          "n": "Cat Cow",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 60,
+          "rest": 0
+        },
+        {
+          "n": "Plank",
+          "c": "core",
+          "mode": "time",
+          "sets": 3,
+          "reps": 10,
+          "secs": 15,
+          "rest": 0,
+          "grp": "exgrpss1"
+        },
+        {
+          "n": "Chaturanga",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 3,
+          "reps": 10,
+          "secs": 10,
+          "rest": 0,
+          "grp": "exgrpss1"
+        },
+        {
+          "n": "Cobra Pose",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 3,
+          "reps": 10,
+          "secs": 15,
+          "rest": 0,
+          "grp": "exgrpss1"
+        },
+        {
+          "n": "Downward Dog",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 3,
+          "reps": 10,
+          "secs": 30,
+          "rest": 0,
+          "grp": "exgrpss1"
+        },
+        {
+          "n": "Child's Pose",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 60,
+          "rest": 0
+        }
+      ]
+    },
+    {
+      "id": "exyog002",
+      "folderId": "exyogfld",
+      "name": "Vinyasa Power Flow",
+      "exercises": [
+        {
+          "n": "Child's Pose to Push-Up",
+          "c": "yoga",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 5,
+          "secs": 30,
+          "rest": 0
+        },
+        {
+          "n": "Three-Legged Dog Knee-to-Nose",
+          "c": "yoga",
+          "mode": "reps",
+          "sets": 2,
+          "reps": 3,
+          "secs": 30,
+          "rest": 0
+        },
+        {
+          "n": "Dolphin",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 25,
+          "rest": 0
+        },
+        {
+          "n": "Plank",
+          "c": "core",
+          "mode": "time",
+          "sets": 3,
+          "reps": 10,
+          "secs": 10,
+          "rest": 0,
+          "grp": "exgrpp2a"
+        },
+        {
+          "n": "Chaturanga",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 3,
+          "reps": 10,
+          "secs": 10,
+          "rest": 0,
+          "grp": "exgrpp2a"
+        },
+        {
+          "n": "Upward-Facing Dog",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 3,
+          "reps": 10,
+          "secs": 15,
+          "rest": 0,
+          "grp": "exgrpp2a"
+        },
+        {
+          "n": "Downward Dog",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 3,
+          "reps": 10,
+          "secs": 30,
+          "rest": 0,
+          "grp": "exgrpp2a"
+        },
+        {
+          "n": "Standing Forward Bend",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 10,
+          "rest": 0,
+          "grp": "exgrpp2b"
+        },
+        {
+          "n": "Halfway Lift",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 8,
+          "rest": 0,
+          "grp": "exgrpp2b"
+        },
+        {
+          "n": "Chair",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 25,
+          "rest": 0,
+          "grp": "exgrpp2b"
+        },
+        {
+          "n": "Crescent Lunge",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 20,
+          "rest": 0,
+          "grp": "exgrpp2b"
+        },
+        {
+          "n": "Chaturanga",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 10,
+          "rest": 0,
+          "grp": "exgrpp2b"
+        },
+        {
+          "n": "Upward-Facing Dog",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 15,
+          "rest": 0,
+          "grp": "exgrpp2b"
+        },
+        {
+          "n": "Downward Dog",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 20,
+          "rest": 0,
+          "grp": "exgrpp2b"
+        },
+        {
+          "n": "Crescent Lunge to Arrowhead",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 20,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Warrior Three",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 25,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Revolved Side Angle",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 20,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Plank",
+          "c": "core",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 5,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Chaturanga",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 10,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Upward-Facing Dog",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 10,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Downward Dog",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 20,
+          "rest": 0,
+          "grp": "exgrpp3a"
+        },
+        {
+          "n": "Crow",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 20,
+          "rest": 0
+        },
+        {
+          "n": "Boat",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 25,
+          "rest": 0
+        },
+        {
+          "n": "Half Boat",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 5,
+          "reps": 10,
+          "secs": 5,
+          "rest": 0,
+          "grp": "exgrpp4a"
+        },
+        {
+          "n": "Boat",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 5,
+          "reps": 10,
+          "secs": 5,
+          "rest": 0,
+          "grp": "exgrpp4a"
+        },
+        {
+          "n": "Bridge Pose",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 45,
+          "rest": 0
+        },
+        {
+          "n": "Pigeon Pose",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 50,
+          "rest": 0
+        },
+        {
+          "n": "Corpse",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 300,
+          "rest": 0
+        }
+      ]
+    },
+    {
+      "id": "exyog003",
+      "folderId": "exyogfld",
+      "name": "Evening Wind-Down",
+      "exercises": [
+        {
+          "n": "Cat Cow",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 60,
+          "rest": 0
+        },
+        {
+          "n": "Downward Dog",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 45,
+          "rest": 0
+        },
+        {
+          "n": "Pigeon Pose",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 60,
+          "rest": 0
+        },
+        {
+          "n": "Bridge Pose",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 45,
+          "rest": 0
+        },
+        {
+          "n": "Hamstring Stretch",
+          "c": "mobility",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 45,
+          "rest": 0
+        },
+        {
+          "n": "Hip Flexor Stretch",
+          "c": "mobility",
+          "mode": "time",
+          "sets": 2,
+          "reps": 10,
+          "secs": 45,
+          "rest": 0
+        },
+        {
+          "n": "Child's Pose",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 90,
+          "rest": 0
+        }
+      ]
+    }
+  ],
+  "customEx": [
+    {
+      "n": "Child's Pose to Push-Up",
+      "c": "yoga"
+    },
+    {
+      "n": "Three-Legged Dog Knee-to-Nose",
+      "c": "yoga"
+    },
+    {
+      "n": "Crescent Lunge to Arrowhead",
+      "c": "yoga",
+      "t": 1
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "app": "health-tracker",
+  "sevV2": true,
+  "woFolders": [
+    {"id": "exstrfld", "name": "Strength", "open": true}
+  ],
+  "workouts": [
+    {
+      "id": "exstr001",
+      "folderId": "exstrfld",
+      "name": "Full-Body Dumbbell",
+      "exercises": [
+        {"n": "Goblet Squat", "c": "squat", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 60},
+        {"n": "Romanian Deadlift", "c": "hinge", "mode": "reps", "sets": 3, "reps": 10, "secs": 30, "rest": 60},
+        {"n": "Push Up", "c": "push", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 60},
+        {"n": "Bent Over Row", "c": "pull", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 60},
+        {"n": "Overhead Press", "c": "press", "mode": "reps", "sets": 3, "reps": 10, "secs": 30, "rest": 60},
+        {"n": "Plank", "c": "core", "mode": "time", "sets": 3, "reps": 10, "secs": 40, "rest": 30},
+        {"n": "Hamstring Stretch", "c": "mobility", "mode": "time", "sets": 1, "reps": 10, "secs": 45, "rest": 0}
+      ]
+    },
+    {
+      "id": "exstr002",
+      "folderId": "exstrfld",
+      "name": "Lower Body & Glutes",
+      "exercises": [
+        {"n": "Squat", "c": "squat", "mode": "reps", "sets": 4, "reps": 12, "secs": 30, "rest": 60},
+        {"n": "Bulgarian Split Squat", "c": "squat", "mode": "reps", "sets": 3, "reps": 10, "secs": 30, "rest": 60},
+        {"n": "Glute Bridge", "c": "hinge", "mode": "reps", "sets": 3, "reps": 15, "secs": 30, "rest": 45},
+        {"n": "Walking Lunge", "c": "lunge", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 60},
+        {"n": "Single Leg Deadlift", "c": "hinge", "mode": "reps", "sets": 3, "reps": 10, "secs": 30, "rest": 45},
+        {"n": "Hip Flexor Stretch", "c": "mobility", "mode": "time", "sets": 2, "reps": 10, "secs": 45, "rest": 0}
+      ]
+    },
+    {
+      "id": "exstr003",
+      "folderId": "exstrfld",
+      "name": "Upper Body Push/Pull (supersets)",
+      "exercises": [
+        {"n": "Push Up", "c": "push", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 60, "grp": "exgrpa01"},
+        {"n": "Bent Over Row", "c": "pull", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 60, "grp": "exgrpa01"},
+        {"n": "Overhead Press", "c": "press", "mode": "reps", "sets": 3, "reps": 10, "secs": 30, "rest": 60, "grp": "exgrpb01"},
+        {"n": "Single Arm Row", "c": "pull", "mode": "reps", "sets": 3, "reps": 10, "secs": 30, "rest": 60, "grp": "exgrpb01"},
+        {"n": "Biceps Curl", "c": "arms", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 45, "grp": "exgrpc01"},
+        {"n": "Triceps Extension", "c": "arms", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 45, "grp": "exgrpc01"},
+        {"n": "Lateral Raise", "c": "press", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 45}
+      ]
+    },
+    {
+      "id": "exstr004",
+      "folderId": "exstrfld",
+      "name": "Core Circuit",
+      "exercises": [
+        {"n": "Plank", "c": "core", "mode": "time", "sets": 3, "reps": 10, "secs": 40, "rest": 20},
+        {"n": "Dead Bug", "c": "core", "mode": "reps", "sets": 3, "reps": 10, "secs": 30, "rest": 20},
+        {"n": "Bicycle Crunch", "c": "core", "mode": "reps", "sets": 3, "reps": 15, "secs": 30, "rest": 20},
+        {"n": "Side Plank", "c": "core", "mode": "time", "sets": 3, "reps": 10, "secs": 30, "rest": 20},
+        {"n": "Mountain Climber", "c": "core", "mode": "time", "sets": 3, "reps": 10, "secs": 30, "rest": 20},
+        {"n": "Leg Raise", "c": "core", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 20}
+      ]
+    }
+  ]
+}

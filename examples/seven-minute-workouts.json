@@ -1,0 +1,44 @@
+{
+  "app": "health-tracker",
+  "sevV2": true,
+  "woFolders": [
+    {"id": "ex7fold1", "name": "7-Minute Workouts", "open": true}
+  ],
+  "workouts": [
+    {
+      "id": "ex7min01",
+      "folderId": "ex7fold1",
+      "name": "7-Minute Workout",
+      "exercises": [
+        {"n": "Jumping Jacks", "c": "cardio", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 10},
+        {"n": "Wall Squat", "c": "squat", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 10},
+        {"n": "Push Up", "c": "push", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 10},
+        {"n": "Crunch", "c": "core", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 10},
+        {"n": "Step Up", "c": "lunge", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 10},
+        {"n": "Squat", "c": "squat", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 10},
+        {"n": "Triceps Dip", "c": "arms", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 10},
+        {"n": "Plank", "c": "core", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 10},
+        {"n": "High Knees", "c": "cardio", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 10},
+        {"n": "Lunge", "c": "lunge", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 10},
+        {"n": "Push Up with Rotation", "c": "push", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 10},
+        {"n": "Side Plank", "c": "core", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 0}
+      ]
+    },
+    {
+      "id": "ex7min02",
+      "folderId": "ex7fold1",
+      "name": "Advanced 7-Minute Workout",
+      "exercises": [
+        {"n": "Reverse Lunge with Rotation", "c": "lunge", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 0},
+        {"n": "Lateral Pillar Bridge", "c": "core", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 0},
+        {"n": "Push-Up to Row to Burpee", "c": "push", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Lateral Pillar Bridge", "c": "core", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 0},
+        {"n": "Single Leg RDL to Curl to Press", "c": "hinge", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Single Leg RDL to Curl to Press", "c": "hinge", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Plank with Arm Lift", "c": "core", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 0},
+        {"n": "Lateral Lunge to Overhead Triceps Extension", "c": "lunge", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Bent Over Row", "c": "pull", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0}
+      ]
+    }
+  ]
+}
