@@ -86,7 +86,8 @@
           "sets": 1,
           "reps": 5,
           "secs": 30,
-          "rest": 0
+          "rest": 0,
+          "grp": "exgrpp2a"
         },
         {
           "n": "Push Up",
@@ -95,7 +96,8 @@
           "sets": 1,
           "reps": 5,
           "secs": 30,
-          "rest": 0
+          "rest": 0,
+          "grp": "exgrpp2a"
         },
         {
           "n": "Three-Legged Dog",
@@ -104,7 +106,8 @@
           "sets": 2,
           "reps": 3,
           "secs": 30,
-          "rest": 0
+          "rest": 0,
+          "grp": "exgrpp2a"
         },
         {
           "n": "Knee to Nose",
@@ -113,16 +116,8 @@
           "sets": 2,
           "reps": 3,
           "secs": 30,
-          "rest": 0
-        },
-        {
-          "n": "Dolphin",
-          "c": "yoga",
-          "mode": "time",
-          "sets": 1,
-          "reps": 10,
-          "secs": 25,
-          "rest": 0
+          "rest": 0,
+          "grp": "exgrpp2a"
         },
         {
           "n": "Plank",
@@ -163,6 +158,15 @@
           "secs": 30,
           "rest": 0,
           "grp": "exgrpp2a"
+        },
+        {
+          "n": "Dolphin",
+          "c": "yoga",
+          "mode": "time",
+          "sets": 1,
+          "reps": 10,
+          "secs": 25,
+          "rest": 0
         },
         {
           "n": "Standing Forward Bend",
