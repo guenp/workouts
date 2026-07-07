@@ -80,7 +80,7 @@
       "name": "Vinyasa Power Flow",
       "exercises": [
         {
-          "n": "Child's Pose to Push-Up",
+          "n": "Child's Pose",
           "c": "yoga",
           "mode": "reps",
           "sets": 1,
@@ -89,7 +89,25 @@
           "rest": 0
         },
         {
-          "n": "Three-Legged Dog Knee-to-Nose",
+          "n": "Push Up",
+          "c": "yoga",
+          "mode": "reps",
+          "sets": 1,
+          "reps": 5,
+          "secs": 30,
+          "rest": 0
+        },
+        {
+          "n": "Three-Legged Dog",
+          "c": "yoga",
+          "mode": "reps",
+          "sets": 2,
+          "reps": 3,
+          "secs": 30,
+          "rest": 0
+        },
+        {
+          "n": "Knee to Nose",
           "c": "yoga",
           "mode": "reps",
           "sets": 2,
@@ -425,14 +443,6 @@
     }
   ],
   "customEx": [
-    {
-      "n": "Child's Pose to Push-Up",
-      "c": "yoga"
-    },
-    {
-      "n": "Three-Legged Dog Knee-to-Nose",
-      "c": "yoga"
-    },
     {
       "n": "Crescent Lunge to Arrowhead",
       "c": "yoga",
