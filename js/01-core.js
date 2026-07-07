@@ -14,26 +14,6 @@ const store = {
   }
 };
 
-/* ---------- default weekly template (0=Sun..6=Sat) ---------- */
-const DEFAULT_TEMPLATE = {
-  0:[ mv("Rest or easy ride","Optional 20 min casual spin") ],
-  1:[ mv("Bike intervals · 30 min","5 min warm-up · 8× (1 min sprint / 2 min easy) · cooldown") ],
-  2:[ mv("Strength circuit · 25 min","3–4 rounds: goblet squats 20lb ×12 · rows ×12/arm · presses 7lb ×10 · lunges ×10/leg") ],
-  3:[ mv("Bike intervals · 30 min","5 min warm-up · 8× (1 min sprint / 2 min easy) · cooldown") ],
-  4:[ mn("Yoga flow · 25 min","Down dog · low lunge · pigeon · child's pose, 5–8 breaths each") ],
-  5:[ mv("Bike intervals · 30 min","5 min warm-up · 8× (1 min sprint / 2 min easy) · cooldown") ],
-  6:[ mv("Strength circuit · 25 min","3–4 rounds: squats · rows · presses · lunges, short rests") ],
-};
-const DAILY = [
-  ml("Breakfast","GF overnight oats · soy milk · chia · blueberries"),
-  ml("Lunch","Quinoa bowl · firm tofu · carrots · zucchini · tahini"),
-  ml("Snack","Banana + peanut butter"),
-  ml("Dinner","Tempeh stir-fry · rice · spinach"),
-  mn("Breathing · 5 min","Slow inhale 4 · exhale 6, seated or lying down"),
-];
-function mv(t,d){return {type:"move",title:t,detail:d}}
-function ml(t,d){return {type:"meal",title:t,detail:d}}
-function mn(t,d){return {type:"mind",title:t,detail:d}}
 let uid = () => Math.random().toString(36).slice(2,9);
 
 /* ---------- state ---------- */
