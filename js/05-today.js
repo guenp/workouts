@@ -17,10 +17,12 @@ function weekStripHTML(d){
     cells += `<button class="ws-d ${k===vk?'sel':''} ${k===tk?'tod':''}" onclick="wsPick('${k}')">
       <small>${DAY_NAMES[c.getDay()][0]}</small><b>${c.getDate()}</b>${has?"<i></i>":""}</button>`;
   }
+  /* Arrows step one DAY (crossing a week boundary flips the strip to that
+     week, e.g. Sun › selects next week's Monday). Tap a day to jump. */
   return `<div class="weekstrip">
-    <button class="daynav" onclick="shiftDay(-7)">‹</button>
+    <button class="daynav" onclick="shiftDay(-1)">‹</button>
     <div class="ws-days">${cells}</div>
-    <button class="daynav" onclick="shiftDay(7)">›</button>
+    <button class="daynav" onclick="shiftDay(1)">›</button>
   </div>`;
 }
 function wsPick(k){ viewDate = k===todayKey() ? null : new Date(k+"T12:00"); render(); }
