@@ -452,7 +452,7 @@ async function driveInit(){
     if(q.files?.length){
       DRIVE.fileId = q.files[0].id;
       const remote = await (await dfetch(`https://www.googleapis.com/drive/v3/files/${DRIVE.fileId}?alt=media`)).json();
-      if(remote?.savedAt && remote.savedAt > (state.savedAt||0)){ state = remote; store.set("steady", state); materializeToday(); }
+      if(remote?.savedAt && remote.savedAt > (state.savedAt||0)){ state = remote; migrateState(); store.set("steady", state); materializeToday(); }
       else { driveUploadSoon(); }
     } else {
       const meta = await (await dfetch("https://www.googleapis.com/drive/v3/files", {
@@ -516,7 +516,8 @@ async function drivePullLatest(){
   try{
     const remote = await (await dfetch(`https://www.googleapis.com/drive/v3/files/${DRIVE.fileId}?alt=media`)).json();
     if(remote?.savedAt && remote.savedAt > (state.savedAt||0)){
-      state = remote; persist();   // adopting, not authoring — don't bump savedAt
+      state = remote; migrateState();
+      persist();   // adopting, not authoring — don't bump savedAt
       materializeToday();
       render();
     }

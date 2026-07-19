@@ -39,9 +39,11 @@ const TYPE_LABEL = {move:"Move", meal:"Meals", mind:"Mind"};   /* legacy default
 function CATS(){ return state.categories || []; }
 function catName(id){ return CATS().find(c=>c.id===id)?.name || "Other"; }
 
-async function init(){
-  const saved = await store.get("steady");
-  if(saved){ state = saved; }
+/* Additive migrations. Runs in init() AND every time a whole remote state is
+   adopted (driveInit / drivePullLatest replace `state` with Drive's copy,
+   which may predate newer fields — categories went missing exactly that way).
+   Must stay idempotent and never remove a step. */
+function migrateState(){
   if(!state.sevV2){
     Object.values(state.days||{}).forEach(d=>(d.gut||[]).forEach(g=>g.sev++));
     state.sevV2 = true;
@@ -58,11 +60,16 @@ async function init(){
   if(state.supRest == null) state.supRest = 10;
   if(!state.categories || !state.categories.length)
     state.categories = [{id:"move",name:"Move"},{id:"meal",name:"Meals"},{id:"mind",name:"Mind"}];
-  startAnimTicker();
   if(!state.template){
     state.template = {};
     for(let d=0; d<7; d++) state.template[d] = [];
   }
+}
+async function init(){
+  const saved = await store.get("steady");
+  if(saved){ state = saved; }
+  migrateState();
+  startAnimTicker();
   materializeToday();
   render();
   /* Only resume Drive AFTER local state is loaded, otherwise driveInit()

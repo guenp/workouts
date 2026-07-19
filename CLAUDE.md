@@ -55,7 +55,7 @@ day item:  plan item + {tid: source plan id, status:"planned"|"done"|"swapped"|"
 gut entry: {time:"HH:MM", sev:0-4 (index into SEV), tags:[string], note, food}
 ```
 
-`init()` performs additive migrations (fills missing keys; `sevV2` bumped severities once). Add new state fields the same way — never assume they exist on loaded data, and never remove a migration.
+Additive migrations live in `migrateState()` (fills missing keys; `sevV2` bumped severities once). It runs in `init()` **and after every whole-state adoption of a remote copy** (`driveInit` / `drivePullLatest` do `state = remote`, and the remote blob may predate newer fields — `state.categories` went missing exactly that way once). Add new state fields inside `migrateState()`, keep it idempotent, never remove a step, and if you add another `state = <whole object>` code path, call `migrateState()` right after it.
 
 **Date keys are LOCAL time.** `todayKey()` formats `YYYY-MM-DD` from local getters. It previously used `toISOString()` (UTC) which shifted dates for users far from UTC — do not reintroduce that. Calendar cells construct dates at noon (`new Date(y,mo,d,12)`) to dodge DST edges. `weekKeyOf()` returns the Monday of a date's week and keys `weekPlans`.
 
@@ -122,6 +122,7 @@ FIT encoding (13-fit.js) mirrors real Garmin Connect exports, including undocume
 5. Tag names containing quotes could break out of inline handler strings (self-XSS / broken UI). Tag handlers now take indices.
 6. An import file containing only exercise photos was rejected as invalid.
 7. Player hotkeys (Space/arrows) hijacked typing in inputs while a workout ran.
+8a. Drive sync adopting a remote state (`state = remote`) skipped migrations, so fields added after the remote blob was written (e.g. `state.categories`) vanished → `addCat` crashed and Today lost its sections. Migrations centralized in `migrateState()`, called after every remote adoption.
 8. `openWoAdd` (the workout "+ Add to plan" buttons) was referenced but never implemented — the buttons threw a ReferenceError. Implemented in 11-workouts.js: add to today, a picked date, or the weekly template.
 
 ## GitHub setup
