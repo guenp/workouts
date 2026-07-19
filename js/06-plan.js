@@ -53,8 +53,10 @@ function planHTML(){
     </div>`:""}`;
 }
 function planRowHTML(it){
+  const cal = it.gcalEventId
+    ? `<div class="d evcue">▤ ${esc(it.gcalTime||"")}${it.gcalTime?" · ":""}${esc(it.gcalCalName||"calendar")}</div>` : "";
   return `<button class="item" onclick="openPlanItem('${it.id}')">
-    <div class="tx"><div class="t">${esc(it.title)}</div><div class="d">${esc(it.detail||"")}${it.gcalEventId?(it.detail?" · ":"")+"on calendar":""}</div></div>
+    <div class="tx"><div class="t">${esc(it.title)}</div><div class="d">${esc(it.detail||"")}</div>${cal}</div>
     <span class="tag">edit</span>
   </button>`;
 }
@@ -63,6 +65,7 @@ function openPlanItem(id){
   activePlan = ensureWeekCopy()[planDay].find(x=>x.id===id);
   openSheet(planForm("Edit item", activePlan.title, activePlan.detail, `
     <button class="primary" onclick="savePlanEdit()">Save</button>
+    ${activePlan.gcalEventId?`<button class="sheet-btn" style="margin-top:8px" onclick="activeItem=activePlan;openItemCal()"><span>${ICON.cal}</span> Calendar event: ${esc(activePlan.gcalTime||"")}${activePlan.gcalTime?" on ":"On "}${esc(activePlan.gcalCalName||"calendar")}…</button>`:""}
     <button class="sheet-btn danger" style="margin-top:8px" onclick="deletePlanItem()"><span>${ICON.trash}</span> Delete from plan</button>`));
 }
 function openPlanAdd(type){

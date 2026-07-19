@@ -352,13 +352,22 @@ function openWoAdd(id){
   `);
 }
 function woAddPickDate(id){
-  openCalendar(new Date(), d=>woAddToDate(id, d));
+  /* When calendar push is on, a time input appears under the date grid. */
+  openCalendar(new Date(), (d, tm)=>woAddToDate(id, d, tm),
+    gcalPushEnabled() ? {time: gcalDefTime()} : {});
 }
-function woAddToDate(id, date){
+function woAddToDate(id, date, tm){
   const w = woById(id); if(!w) return;
   const d = date || new Date();
   materializeDay(d);
-  state.days[todayKey(d)].items.push(woAsItem(w, true));
+  const it = woAsItem(w, true);
+  state.days[todayKey(d)].items.push(it);
+  /* Push as a one-off event: picked time, or the current time for "Today". */
+  const p = n=>String(n).padStart(2,"0");
+  const now = new Date();
+  gcalPushDayItems([it], {dateKey: todayKey(d),
+    time: tm || (date ? gcalDefTime() : `${p(now.getHours())}:${p(now.getMinutes())}`),
+    dur: woMinutes(w)});
   save(); closeSheet(); render();
 }
 function woAddToTemplate(id, dow){

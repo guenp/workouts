@@ -49,6 +49,7 @@ input,textarea,select{font:inherit; color:inherit}
 .ws-d.sel{background:var(--ink)}
 .ws-d.sel small,.ws-d.sel b{color:#fff}
 .ws-d i{position:absolute; bottom:4px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:99px; background:var(--orange)}
+.evcue{color:var(--sage) !important; font-size:12px}
 /* calendar event rows (Today) */
 .dot.gcal{background:#EAF2EA; color:var(--good); font-size:10px}
 /* orange zone signature card */

@@ -85,15 +85,20 @@ function itemHTML(it){
   const sub = it.status==="swapped" && it.actual
     ? `<div class="d swap">Instead: ${esc(it.actual)}</div>`
     : (it.detail ? `<div class="d">${esc(it.detail)}</div>` : "");
+  const cal = it.gcalEventId
+    ? `<div class="d evcue">▤ ${esc(it.gcalTime||"")}${it.gcalTime?" · ":""}${esc(it.gcalCalName||"calendar")}</div>` : "";
   return `<button class="item status-${it.status}" onclick="openItem('${it.id}')">
     <div class="dot ${it.status}">${mark}</div>
-    <div class="tx"><div class="t">${esc(it.title)}</div>${sub}</div>
+    <div class="tx"><div class="t">${esc(it.title)}</div>${sub}${cal}</div>
   </button>`;
 }
 /* ---------- calendar picker ---------- */
 let cal = null;
 function openCalendar(selDate, cb, opts={}){
-  cal = { m: new Date(selDate.getFullYear(), selDate.getMonth(), 1), sel: todayKey(selDate), cb, max: opts.max||null };
+  /* opts.time ("HH:MM") adds a time input under the grid; the picked time is
+     passed as the callback's 2nd argument (extra arg is harmless to callers
+     that ignore it). */
+  cal = { m: new Date(selDate.getFullYear(), selDate.getMonth(), 1), sel: todayKey(selDate), cb, max: opts.max||null, time: opts.time ?? null };
   renderCalendar();
 }
 function calShift(n){ cal.m.setMonth(cal.m.getMonth()+n); renderCalendar(); }
@@ -102,7 +107,8 @@ function calPick(k){
     cal.multi.has(k) ? cal.multi.delete(k) : cal.multi.add(k);
     renderCalendar(); return;
   }
-  const cb = cal.cb; closeSheet(); cb(new Date(k+"T12:00"));
+  const tm = document.getElementById("calTimeIn")?.value || cal.time || null;
+  const cb = cal.cb; closeSheet(); cb(new Date(k+"T12:00"), tm);
 }
 function openCalendarMulti(selectedSet, onDone, opts={}){
   cal = { m: new Date(), sel: null, multi: selectedSet, cb: onDone, max: opts.max||null };
@@ -132,6 +138,7 @@ function renderCalendar(){
       ${["S","M","T","W","T","F","S"].map(x=>`<b class="cal-h">${x}</b>`).join("")}
       ${cells}
     </div>
+    ${cal.time!=null ? `<label class="fl" style="margin-top:12px">Calendar event time</label><input class="field" type="time" id="calTimeIn" value="${esc(cal.time)}">` : ""}
     ${cal.multi ? `<button class="primary" style="margin-top:12px" onclick="const cb=cal.cb;closeSheet();cb()">Done</button>` : ""}
   `);
 }
@@ -184,6 +191,7 @@ function openItem(id){
     <h3>${esc(it.title)}</h3>
     <p class="sub">${esc(it.detail||"")}</p>
     ${it.workoutId && woById(it.workoutId) ? `<button class="sheet-btn" onclick="closeSheet();woViewId='${it.workoutId}';setTab('workouts')"><span>${ICON.open}</span> Go to workout</button>` : ""}
+    ${it.gcalEventId ? `<button class="sheet-btn" onclick="openItemCal()"><span>${ICON.cal}</span> Calendar event: ${esc(it.gcalTime||"")}${it.gcalTime?" on ":"On "}${esc(it.gcalCalName||"calendar")}…</button>` : ""}
     <button class="sheet-btn" onclick="setStatus('done')"><span>✓</span> Did it as planned</button>
     <button class="sheet-btn" onclick="showSwap()"><span>↷</span> Did / ate something else</button>
     <button class="sheet-btn" onclick="setStatus('skipped')"><span>✕</span> Skipped it</button>

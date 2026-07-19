@@ -268,14 +268,36 @@ function gcalEvToDay(i, ci){
   save(); closeSheet(); render();
 }
 
-/* ---- pushing plan items to the calendar ----
-   opts: {dow:0-6, weekMonday:Date|null (null = weekly template → recurring),
-          time:"HH:MM", dur:minutes}. Items are the live plan-item objects;
-   on success they get gcalEventId/gcalCalId so edits/deletes propagate. */
+/* ---- pushing items to the calendar ----
+   Linked items carry gcalEventId/gcalCalId (so edits/deletes propagate) plus
+   display-only gcalCalName/gcalTime for the Today/Plan cue — the cue is a
+   snapshot; openItemCal() re-reads the live event before editing. */
+function gcalFmtLocal(d){ const p=n=>String(n).padStart(2,"0"); return `${todayKey(d)}T${p(d.getHours())}:${p(d.getMinutes())}:00`; }
+function gcalLinkItem(it, evId, cal, time){
+  it.gcalEventId = evId; it.gcalCalId = cal.id;
+  it.gcalCalName = cal.summary; it.gcalTime = time;
+}
+async function gcalCreateEvent(it, sd, ed, recurrence){
+  const cal = gcalTargetCal();
+  const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  try{
+    const body = {
+      summary: it.title, description: it.detail || "",
+      start: {dateTime: gcalFmtLocal(sd), timeZone: TZ},
+      end:   {dateTime: gcalFmtLocal(ed), timeZone: TZ},
+      extendedProperties: {private: {woApp:"1", woCat:String(it.type), woCatName:catName(it.type)}}
+    };
+    if(recurrence) body.recurrence = recurrence;
+    const r = await (await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`,
+      {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)})).json();
+    return r.id ? r : null;
+  }catch(e){ console.error("calendar push failed", e); return null; }
+}
+/* Plan items. opts: {dow:0-6, weekMonday:Date|null (null = weekly template →
+   recurring event), time:"HH:MM", dur:minutes}. */
 async function gcalPushPlanItems(items, o){
   if(!gcalPushEnabled() || !items.length) return;
   const cal = gcalTargetCal();
-  const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const time = /^\d\d:\d\d$/.test(o.time||"") ? o.time : gcalDefTime();
   const dur = Math.max(5, +o.dur || 45);
   let base;
@@ -283,24 +305,113 @@ async function gcalPushPlanItems(items, o){
   else { base = new Date(); base.setDate(base.getDate() + ((o.dow - base.getDay()) + 7) % 7); }   // next occurrence of that weekday
   const sd = new Date(todayKey(base)+"T"+time);
   const ed = new Date(sd.getTime() + dur*60000);
-  const fmt = d => { const p=n=>String(n).padStart(2,"0"); return `${todayKey(d)}T${p(d.getHours())}:${p(d.getMinutes())}:00`; };
   let linked = false;
   for(const it of items){
-    try{
-      const body = {
-        summary: it.title, description: it.detail || "",
-        start: {dateTime: fmt(sd), timeZone: TZ},
-        end:   {dateTime: fmt(ed), timeZone: TZ},
-        extendedProperties: {private: {woApp:"1", woCat:String(it.type), woCatName:catName(it.type)}}
-      };
-      if(!o.weekMonday) body.recurrence = ["RRULE:FREQ=WEEKLY;BYDAY="+GCAL_BYDAY[o.dow]];
-      const r = await (await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`,
-        {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)})).json();
-      if(r.id){ it.gcalEventId = r.id; it.gcalCalId = cal.id; linked = true; }
-    }catch(e){ console.error("calendar push failed", e); }
+    const r = await gcalCreateEvent(it, sd, ed, o.weekMonday ? null : ["RRULE:FREQ=WEEKLY;BYDAY="+GCAL_BYDAY[o.dow]]);
+    if(r){ gcalLinkItem(it, r.id, cal, time); linked = true; }
   }
   GCAL.ev = {};             // day caches are stale now
   if(linked) save();        // persist the event links (authoring change)
+}
+/* Day items (e.g. a workout added to today / a picked date) → one-off events.
+   opts: {dateKey:"YYYY-MM-DD", time:"HH:MM", dur:minutes}. */
+async function gcalPushDayItems(items, o){
+  if(!gcalPushEnabled() || !items.length) return;
+  const cal = gcalTargetCal();
+  const time = /^\d\d:\d\d$/.test(o.time||"") ? o.time : gcalDefTime();
+  const dur = Math.max(5, +o.dur || 45);
+  const sd = new Date(o.dateKey+"T"+time);
+  const ed = new Date(sd.getTime() + dur*60000);
+  let linked = false;
+  for(const it of items){
+    const r = await gcalCreateEvent(it, sd, ed, null);
+    if(r){ gcalLinkItem(it, r.id, cal, time); linked = true; }
+  }
+  GCAL.ev = {};
+  if(linked){ save(); render(); }   // re-render so the "on calendar" cue appears
+}
+/* Update/remove the link fields on every item (template, week overrides,
+   days) that references this event — plan items and their materialized
+   copies share the same event id. patch=null removes the link. */
+function gcalSyncLinks(evId, patch){
+  const apply = it => {
+    if(it.gcalEventId !== evId) return;
+    if(patch) Object.assign(it, patch);
+    else { delete it.gcalEventId; delete it.gcalCalId; delete it.gcalCalName; delete it.gcalTime; }
+  };
+  for(let d=0; d<7; d++) (state.template[d]||[]).forEach(apply);
+  Object.values(state.weekPlans||{}).forEach(wk => { for(let d=0; d<7; d++) (wk[d]||[]).forEach(apply); });
+  Object.values(state.days||{}).forEach(day => (day.items||[]).forEach(apply));
+}
+/* ---- edit sheet for a linked event (opened from an item's action sheet;
+   the caller sets activeItem first — plan items reuse it too) ---- */
+async function openItemCal(){
+  const it = activeItem; if(!it?.gcalEventId) return;
+  openSheet(`<h3>Calendar event</h3><p class="sub">Loading…</p>`);
+  if(!GCAL.token){
+    return openSheet(`<h3>Calendar event</h3><p class="sub">Google Calendar is disconnected — reconnect in Settings → Google Calendar.</p>
+      <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
+  }
+  if(!GCAL.list) await gcalLoadList();
+  let ev = null;
+  try{ ev = await (await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(it.gcalCalId)}/events/${encodeURIComponent(it.gcalEventId)}`)).json(); }catch(e){}
+  if(!ev?.id || ev.status==="cancelled"){
+    return openSheet(`<h3>Calendar event</h3><p class="sub">Couldn't load the event — it may have been deleted in Google Calendar.</p>
+      <button class="sheet-btn danger" onclick="gcalSyncLinks(activeItem.gcalEventId, null);save();closeSheet();render()"><span>${ICON.trash}</span> Forget the link</button>
+      <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
+  }
+  const sd = ev.start?.dateTime ? new Date(ev.start.dateTime) : null;
+  const edt = ev.end?.dateTime ? new Date(ev.end.dateTime) : null;
+  const p = n=>String(n).padStart(2,"0");
+  const time = sd ? p(sd.getHours())+":"+p(sd.getMinutes()) : gcalDefTime();
+  const dur = sd && edt ? Math.max(5, Math.round((edt-sd)/60000)) : 45;
+  const recurring = !!(ev.recurrence && ev.recurrence.length);
+  GCAL.editEv = {calId: it.gcalCalId, evId: it.gcalEventId, dateK: sd ? todayKey(sd) : (ev.start?.date || todayKey())};
+  const wr = gcalWritable();
+  openSheet(`
+    <h3>Calendar event</h3>
+    <p class="sub">${esc(it.title)} on <b>${esc(it.gcalCalName||"your calendar")}</b>${recurring?" · repeats weekly — changes apply to the whole series":""}</p>
+    <div class="numrow">
+      <div><label class="fl">Time</label><input class="field" type="time" id="evTimeIn" value="${time}"></div>
+      <div><label class="fl">Duration (min)</label><input class="field" type="number" min="5" id="evDurIn" value="${dur}"></div>
+    </div>
+    ${wr.length>1?`<label class="fl">Calendar</label>
+      <select class="field" id="evCalSel">${wr.map((c,i)=>`<option value="${i}" ${c.id===it.gcalCalId?"selected":""}>${esc(c.summary)}</option>`).join("")}</select>`:""}
+    <button class="primary" onclick="saveItemCal()">Save</button>
+    <button class="sheet-btn danger" style="margin-top:8px" onclick="removeItemCal()"><span>${ICON.trash}</span> Remove from calendar</button>
+    <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
+}
+async function saveItemCal(){
+  const e = GCAL.editEv; if(!e) return;
+  const time = document.getElementById("evTimeIn")?.value || gcalDefTime();
+  const dur = Math.max(5, parseInt(document.getElementById("evDurIn")?.value)||45);
+  const selEl = document.getElementById("evCalSel");
+  closeSheet();
+  try{
+    let calId = e.calId, calName = null;
+    if(selEl){
+      const dest = gcalWritable()[+selEl.value];
+      if(dest && dest.id !== calId){
+        await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(e.evId)}/move?destination=${encodeURIComponent(dest.id)}`, {method:"POST"});
+        calId = dest.id; calName = dest.summary;
+      } else if(dest) calName = dest.summary;
+    }
+    const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const sd = new Date(e.dateK+"T"+time), ed = new Date(sd.getTime()+dur*60000);
+    await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(e.evId)}`,
+      {method:"PATCH", headers:{"Content-Type":"application/json"},
+       body:JSON.stringify({start:{dateTime:gcalFmtLocal(sd), timeZone:TZ}, end:{dateTime:gcalFmtLocal(ed), timeZone:TZ}})});
+    gcalSyncLinks(e.evId, {gcalCalId:calId, gcalTime:time, ...(calName?{gcalCalName:calName}:{})});
+    GCAL.ev = {};
+    save();
+  }catch(err){ console.error(err); }
+  render();
+}
+function removeItemCal(){
+  const e = GCAL.editEv; if(!e) return;
+  gcalDeleteEvent(e.calId, e.evId);
+  gcalSyncLinks(e.evId, null);
+  save(); closeSheet(); render();
 }
 function gcalDeleteEvent(calId, evId){
   if(!GCAL.token || !calId || !evId) return;
