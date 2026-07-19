@@ -39,6 +39,18 @@ input,textarea,select{font:inherit; color:inherit}
 .cal-d.sel{background:var(--ink); color:#fff}
 .cal-d:disabled{opacity:.3}
 .cal-d i{position:absolute; bottom:4px; left:50%; transform:translateX(-50%); width:5px; height:5px; border-radius:99px; background:var(--orange)}
+/* week strip (Today) */
+.weekstrip{display:flex; align-items:center; gap:2px; margin-bottom:12px}
+.ws-days{display:flex; flex:1; gap:4px; min-width:0}
+.ws-d{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:1px; padding:7px 0 10px; border-radius:12px; background:var(--card); box-shadow:0 1px 2px rgba(40,50,43,.05); position:relative}
+.ws-d small{font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.5px}
+.ws-d b{font-size:14px; font-weight:600}
+.ws-d.tod b{color:var(--orange)}
+.ws-d.sel{background:var(--ink)}
+.ws-d.sel small,.ws-d.sel b{color:#fff}
+.ws-d i{position:absolute; bottom:4px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:99px; background:var(--orange)}
+/* calendar event rows (Today) */
+.dot.gcal{background:#EAF2EA; color:var(--good); font-size:10px}
 /* orange zone signature card */
 .zone{
   background:linear-gradient(135deg,#2E3A32,#3C4A3F); color:#F4EFE7; border-radius:20px;

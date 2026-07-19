@@ -72,6 +72,7 @@ function handleAuthReturn(){
     scheduleTokenExpiry(a.expMs);
     return true;
   }
+  if(a.purpose==="gcal"){ gcalAuthReturn(a); return true; }   /* Calendar token (04b-gcal.js) */
   VIS.token = a.token; setTimeout(()=>VIS.token=null, a.expMs);
   if(a.purpose==="vis-open") visOpenGo();
   else if(a.purpose==="vis-save") visSaveGo();

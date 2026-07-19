@@ -46,6 +46,9 @@ function openDataMenu(){
     <button class="sheet-btn" onclick="openDownloadMenu()"><span>${ICON.down}</span> Download app data…</button>
     <label class="sheet-btn" for="upIn" style="cursor:pointer"><span>${ICON.up}</span> Upload data</label>
     <button class="sheet-btn" onclick="openPasteData()"><span>${ICON.pencil}</span> Paste data</button>
+    <p class="sub" style="margin-top:14px">Planning</p>
+    <button class="sheet-btn" onclick="openCatMenu()"><span>${ICON.pencil}</span> Categories… <small style="margin-left:auto;color:var(--sage)">${CATS().length}</small></button>
+    <button class="sheet-btn" onclick="openGcalMenu()"><span>${ICON.cal}</span> Google Calendar… ${GCAL.token && gcalCals().length ? `<small style="margin-left:auto;color:var(--sage)">${gcalCals().length} on</small>` : ""}</button>
     <p class="sub" style="margin-top:14px">Google Drive settings</p>
     <button class="sheet-btn" onclick="saveVis()"><span>${ICON.folder}</span> Save to Drive file…</button>
     <button class="sheet-btn" onclick="openVis()"><span>${ICON.open}</span> Open from Drive…</button>
@@ -64,6 +67,44 @@ function openDataMenu(){
     <div id="verFoot">${verFooterHTML()}</div>
   `);
 }
+/* ---------- category manager (Today/Plan sections, stored in state) ---------- */
+function openCatMenu(){
+  openSheet(`
+    <h3>Categories</h3>
+    <p class="sub">The sections on the Today and Plan tabs — add any you like. When plan items are pushed to Google Calendar, the category is stored on the event.</p>
+    ${CATS().map((c,i)=>`<button class="sheet-btn" onclick="openCatEdit(${i})"><span>${ICON.pencil}</span> ${esc(c.name)}</button>`).join("")}
+    <label class="fl">New category</label>
+    <input class="field" id="catIn" placeholder="e.g. Stretch">
+    <button class="primary" onclick="addCat()">Add category</button>
+    <button class="sheet-btn" style="margin-top:8px" onclick="openDataMenu()"><span>${ICON.back}</span> Back</button>`);
+}
+function addCat(){
+  const n = document.getElementById("catIn").value.trim(); if(!n) return;
+  state.categories.push({id:uid(), name:n});   /* uid → safe in inline handlers */
+  save(); openCatMenu(); render();
+}
+function openCatEdit(i){
+  const c = CATS()[i]; if(!c) return;
+  openSheet(`
+    <h3>Edit category</h3><p class="sub"></p>
+    <label class="fl">Name</label><input class="field" id="catN" value="${esc(c.name)}">
+    <button class="primary" onclick="saveCatEdit(${i})">Save</button>
+    ${CATS().length>1?`<button class="sheet-btn danger" style="margin-top:8px" onclick="delCat(${i})"><span>${ICON.trash}</span> Delete category</button>`:""}
+    <p class="sub">Deleting a category keeps its items — they move to an "Other" section.</p>
+    <button class="sheet-btn" onclick="openCatMenu()"><span>${ICON.back}</span> Back</button>`);
+  setTimeout(()=>document.getElementById("catN")?.focus(),250);
+}
+function saveCatEdit(i){
+  const c = CATS()[i]; if(!c) return;
+  const n = document.getElementById("catN").value.trim();
+  if(n) c.name = n;
+  save(); openCatMenu(); render();
+}
+function delCat(i){
+  if(CATS().length<=1) return;
+  state.categories.splice(i,1);
+  save(); openCatMenu(); render();
+}
 const SECTIONS = [["workouts","Workouts"],["photos","Exercise photos"],["plans","Plans & goal"],["checks","Health checks"],["logs","Daily logs (move · meals · mind)"],["tags","Tags"]];
 let expSel = {workouts:true, photos:true, plans:true, checks:true, logs:true, tags:true}, impSel = null, impHas = null;
 function openDownloadMenu(){
@@ -78,7 +119,7 @@ function buildExport(){
   const out = {app:"health-tracker", savedAt:Date.now(), sevV2:true};
   if(expSel.workouts){ out.workouts = state.workouts; out.woFolders = state.woFolders; out.customEx = state.customEx; }
   if(expSel.photos) out.exImages = state.exImages;
-  if(expSel.plans){ out.template = state.template; out.weekPlans = state.weekPlans; out.goal = state.goal; }
+  if(expSel.plans){ out.template = state.template; out.weekPlans = state.weekPlans; out.goal = state.goal; out.categories = state.categories; }
   if(expSel.checks || expSel.logs){
     out.days = {};
     for(const [k,d] of Object.entries(state.days)){
@@ -168,6 +209,10 @@ function applyImport(){
     if(up.template) state.template = up.template;
     state.weekPlans = {...(state.weekPlans||{}), ...(up.weekPlans||{})};
     if(up.goal) state.goal = up.goal;
+    if(Array.isArray(up.categories) && up.categories.length){   /* merge by id */
+      const have = new Set(state.categories.map(c=>c.id));
+      state.categories = [...state.categories, ...up.categories.filter(c=>c && c.id && c.name && !have.has(c.id))];
+    }
   }
   if((impSel.checks || impSel.logs) && up.days){
     for(const [k,d] of Object.entries(up.days)){
@@ -204,7 +249,8 @@ function confirmClear(){
   `);
 }
 function clearAll(){
-  state = { days:{}, goal:45, sevV2:true, tags:[], template:{}, weekPlans:{}, workouts:[], woFolders:[], customEx:[], exImages:{}, defRest:60, supRest:10 };
+  state = { days:{}, goal:45, sevV2:true, tags:[], template:{}, weekPlans:{}, workouts:[], woFolders:[], customEx:[], exImages:{}, defRest:60, supRest:10,
+    categories:[{id:"move",name:"Move"},{id:"meal",name:"Meals"},{id:"mind",name:"Mind"}] };
   for(let d=0; d<7; d++) state.template[d] = [];
   materializeToday();
   save(); closeSheet(); render();

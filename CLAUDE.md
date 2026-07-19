@@ -11,6 +11,7 @@ js/01-core.js       storage abstraction, state object, init(), date keys, materi
 js/02-icons.js      IC() helper + ICON map (inline SVG strings)
 js/03-ui.js         openSheet/closeSheet, esc(), long-press helpers, render() root, nav, anim ticker
 js/04-drive.js      storage mode, appDataFolder sync (DRIVE), visible-file save/open (VIS), token lifecycle
+js/04b-gcal.js      Google Calendar: show events on Today, push plan items as (recurring) events, calendar management
 js/05-today.js      Today tab, calendar picker, item action sheet, "Add to today/plan" sheet
 js/06-plan.js       Plan tab: weekly template + per-week overrides
 js/07-gut.js        Health check tab: severity, tags, entry edit/bulk-delete
@@ -43,12 +44,14 @@ state = {
   weekPlans: {"<monday-key>": {0..6: [item]}},  // per-week overrides (deep copies of template)
   days: {"YYYY-MM-DD": {items:[item+status], orange:min, gut:[entry]}},
   goal: 45, tags: [string],
+  categories: [{id,name}],         // Today/Plan sections (default move/meal/mind); ids handler-safe (uid or legacy), names user text
+
   workouts: [{id,name,folderId?,exercises:[{n,c,mode,sets,reps,secs,rest,wt?,wu?,grp?}]}],  // wt: optional weight, wu: "lb"|"kg"; wtUnit (top-level) = default unit for new weights
   woFolders: [{id,name,open}], customEx: [{n,c,t?}], exImages: {name: dataURL},
   defRest, supRest, animMs, sevV2: true, savedAt: ms
 }
-plan item: {id, type:"move"|"meal"|"mind", title, detail, workoutId?}
-day item:  plan item + {tid: source plan id, status:"planned"|"done"|"swapped"|"skipped", actual}
+plan item: {id, type:<category id>, title, detail, workoutId?, gcalEventId?, gcalCalId?}  // gcal* = linked Google Calendar event
+day item:  plan item + {tid: source plan id, status:"planned"|"done"|"swapped"|"skipped", actual, gcalEvId?}  // gcalEvId = copied from a calendar event
 gut entry: {time:"HH:MM", sev:0-4 (index into SEV), tags:[string], note, food}
 ```
 
@@ -56,7 +59,9 @@ gut entry: {time:"HH:MM", sev:0-4 (index into SEV), tags:[string], note, food}
 
 **Date keys are LOCAL time.** `todayKey()` formats `YYYY-MM-DD` from local getters. It previously used `toISOString()` (UTC) which shifted dates for users far from UTC — do not reintroduce that. Calendar cells construct dates at noon (`new Date(y,mo,d,12)`) to dodge DST edges. `weekKeyOf()` returns the Monday of a date's week and keys `weekPlans`.
 
-**Materialization.** A day's items are copied from the plan (`planItemsFor`: week override → template) the first time the day is viewed/logged (`materializeDay`). After that the day is independent — plan edits don't retroactively change materialized days. Viewing an old date materializes it from the *current* plan; known behavior, accept it.
+**Materialization.** A day's items are copied from the plan (`planItemsFor`: week override → template) the first time the day is viewed/logged (`materializeDay`). After that the day is independent — plan edits don't retroactively change materialized days. Viewing an old date materializes it from the *current* plan; known behavior, accept it. **Future dates are the exception:** the Today tab (reachable via the week strip / day arrows / date picker) renders future days as a live, NON-materialized plan preview (`previewDay`, item ids `"pv"+planItemId`) so plan edits keep showing; the day materializes on first interaction (tapping an item, adding, bumping orange). Don't add code paths that materialize future days on mere viewing.
+
+**Categories are data, not constants.** The Today/Plan sections come from `state.categories` (managed in Settings → Categories). Iterate `CATS()` and label with `catName(id)`; items whose `type` matches no category render in an "Other" section. `TYPE_LABEL` and the literal `"move"/"meal"/"mind"` survive only as legacy defaults (workouts always log as type `"move"`, which is guaranteed to exist as a default but can be renamed). Category names are user text: `esc()` only, pass indices/ids to handlers.
 
 **persist() vs save().** `persist()` writes locally without touching `savedAt`; `save()` stamps `savedAt` and schedules a debounced Drive upload. Use `save()` for user actions, `persist()` only when writing without claiming the data is newer than Drive (e.g. materialization, adopting a remote copy).
 
@@ -79,6 +84,12 @@ Token lifecycle: access tokens last ~1 h; we cache them in localStorage with a 5
 
 **Connected-account row (Settings).** When Drive is the storage mode, Settings shows who's signed in (avatar + email, standard Google-widget style) via `acctRowHTML()`; tapping opens `openDriveAccount()` with Switch account (re-prompts with `select_account`, keeps the grant) and Sign out (revokes the token and falls back to local). Account info comes from Drive's `about` endpoint (`fetchDriveUser()`, called from `driveInit`) — works with both sync scopes, no extra OAuth scope. It's cached in localStorage (`driveUser`) so the row still shows after the ~1h token expires; cleared only by Sign out/Switch. Name/email/photo are user-controlled Google data: render via `esc()` only, never interpolate into inline handlers (handlers here take no args).
 
+**Google Calendar (04b-gcal.js).** Separate feature from Drive sync with its OWN token (`gcalTok` in localStorage, scope `https://www.googleapis.com/auth/calendar`, resumed by `resumeGcal()` from the end of `init()`, single expiry timer `scheduleGcalExpiry`) — never merge it with Drive's token; the scopes differ and each would invalidate the other. iOS full-page OAuth returns route through `handleAuthReturn` purpose `"gcal"`. Requires the Google Calendar API to be enabled on the same Cloud project as the OAuth client. Per-device prefs (localStorage): `gcalCals` (selected calendars `[{id,summary}]`), `gcalPush` ("1" = push new plan items to a calendar), `gcalTarget` ({id,summary}, default primary), `gcalDefTime`. Behavior:
+- Today tab calls `gcalDayData(k)`: fetches the viewed day's events per selected calendar (cached in `GCAL.ev[k]`, re-render when the fetch lands). Events with private extendedProperty `woCat` matching a category render inside that category's section; others in a "Calendar" section; tapping one can copy it into the day (`gcalEvId` links them, which also hides the calendar row — dedupe).
+- Events the app creates carry `extendedProperties.private = {woApp:"1", woCat, woCatName}` and are HIDDEN on Today (the plan/day item already shows) — that's the dedupe mechanism, don't remove it.
+- Adding plan items (add sheet or a workout's "every week on…") pushes them via `gcalPushPlanItems`: weekly-template adds become weekly recurring events (RRULE BYDAY), specific-week adds one-off events. The plan item stores `gcalEventId`/`gcalCalId`; `savePlanEdit` patches the event, `deletePlanItem` deletes it. Only NEWLY added items are pushed — enabling push does not backfill existing plans.
+- Event titles/descriptions/calendar names are external data: `esc()` only, inline handlers take indices into `GCAL.list`/`GCAL.dayList`, never strings.
+
 `DRIVE.CLIENT_ID` is public by design (OAuth web client for the GitHub Pages origin). Setup steps are in the comment at the top of 04-drive.js.
 
 ## Workouts, player, FIT export
@@ -98,9 +109,12 @@ FIT encoding (13-fit.js) mirrors real Garmin Connect exports, including undocume
 - Long-press enters bulk-edit mode on tags, health entries, and workout rows; `removeGut`/`removeTag` deliberately stay in edit mode after deleting.
 - The player keeps ticking if you leave the Workouts tab; returning shows it again.
 - Deleting a workout keeps copies already materialized into days (they're snapshots by design).
+- The Today week strip and date picker allow future dates (plan preview, see Materialization); the trends/health pickers still cap at today.
+- Deleting a category keeps its items — they move to an "Other" section (no reassignment prompt by design).
 
 ## Bugs fixed in the 2026-07 refactor (regression watch-list)
 
+0. (2026-07 calendar feature) `js/*.js` glob order is load order in the single-file build — a module named 15-* would load AFTER 14-main.js and `init()` would throw on its functions. That's why the calendar module is `04b-gcal.js`. Keep 14-main.js last in glob order.
 1. `todayKey()` used UTC → wrong day keys off-UTC (worst in NZ/US evenings). Now local-time.
 2. `resumeDrive` ran as an IIFE at parse time, racing `init()`'s local load → possible data loss on startup. Now called from `init()`.
 3. Duplicate `link` key in `ICON` — the Drive-connect chain icon was silently overridden by the superset icon. First renamed to `chain`.

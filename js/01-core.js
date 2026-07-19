@@ -31,7 +31,13 @@ const todayKey = (d=new Date()) => {
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
 };
 const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const TYPE_LABEL = {move:"Move", meal:"Meals", mind:"Mind"};
+const TYPE_LABEL = {move:"Move", meal:"Meals", mind:"Mind"};   /* legacy defaults — live list is state.categories */
+/* Customizable item categories (Today/Plan sections). Ids are handler-safe
+   (uid() or the legacy move/meal/mind); names are user text — esc() only,
+   never interpolate into inline handlers. Items whose type no longer matches
+   a category fall into an "Other" section (catName returns "Other"). */
+function CATS(){ return state.categories || []; }
+function catName(id){ return CATS().find(c=>c.id===id)?.name || "Other"; }
 
 async function init(){
   const saved = await store.get("steady");
@@ -50,6 +56,8 @@ async function init(){
   if(state.defRest == null) state.defRest = 60;
   if(!state.wtUnit) state.wtUnit = "lb";   /* default unit for newly-entered weights */
   if(state.supRest == null) state.supRest = 10;
+  if(!state.categories || !state.categories.length)
+    state.categories = [{id:"move",name:"Move"},{id:"meal",name:"Meals"},{id:"mind",name:"Mind"}];
   startAnimTicker();
   if(!state.template){
     state.template = {};
@@ -61,6 +69,8 @@ async function init(){
      compares remote savedAt against the empty default state and can lose
      the newer local copy (or local load can overwrite the remote one). */
   resumeDrive();
+  resumeGcal();   /* separate Calendar token (04b-gcal.js); after resumeDrive so
+                     handleAuthReturn has consumed any OAuth-redirect hash */
   /* After local state is loaded (a share import mutates state) and after
      resumeDrive() has consumed any OAuth-redirect hash. */
   handleShareLink();

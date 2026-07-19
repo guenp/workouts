@@ -1,20 +1,52 @@
 /* ---------- TODAY ---------- */
+/* Future days are NOT materialized on view — they render a live preview of
+   the plan (ids "pv"+planItemId) so later plan edits still show up. The day
+   is materialized on first interaction (tap an item, add, bump orange). */
+function previewDay(d){
+  return { items: planItemsFor(d).map(t=>({...t, tid:t.id, id:"pv"+t.id, status:"planned", actual:""})),
+           orange:0, gut:[], preview:true };
+}
+function weekStripHTML(d){
+  const mon = new Date(d); mon.setDate(mon.getDate() - ((mon.getDay()+6)%7));
+  const tk = todayKey(), vk = todayKey(d);
+  let cells = "";
+  for(let i=0;i<7;i++){
+    const c = new Date(mon); c.setDate(mon.getDate()+i);
+    const k = todayKey(c), dd = state.days[k];
+    const has = dd && (dd.gut.length || dd.orange || dd.items.some(x=>x.status!=="planned"));
+    cells += `<button class="ws-d ${k===vk?'sel':''} ${k===tk?'tod':''}" onclick="wsPick('${k}')">
+      <small>${DAY_NAMES[c.getDay()][0]}</small><b>${c.getDate()}</b>${has?"<i></i>":""}</button>`;
+  }
+  return `<div class="weekstrip">
+    <button class="daynav" onclick="shiftDay(-7)">‹</button>
+    <div class="ws-days">${cells}</div>
+    <button class="daynav" onclick="shiftDay(7)">›</button>
+  </div>`;
+}
+function wsPick(k){ viewDate = k===todayKey() ? null : new Date(k+"T12:00"); render(); }
 function todayHTML(){
   const d = viewDate || new Date();
-  materializeDay(d);
-  const k = todayKey(d), day = state.days[k];
+  const k = todayKey(d);
+  const isFuture = k > todayKey();
+  if(!isFuture) materializeDay(d);
+  const day = state.days[k] || previewDay(d);
   const weekMin = weekOrange();
   const pct = Math.min(100, Math.round(weekMin/state.goal*100));
   const isToday = k === todayKey();
-  const groups = {move:[], meal:[], mind:[]};
-  day.items.forEach(it=>groups[it.type]?.push(it));
+  const cats = CATS();
+  const groups = new Map(cats.map(c=>[c.id, []]));
+  const other = [];
+  day.items.forEach(it=> groups.has(it.type) ? groups.get(it.type).push(it) : other.push(it));
+  const gc = gcalDayData(k);   // null when Calendar integration is off
   return `
   <div class="top"><div style="display:flex;align-items:center;gap:6px">
     <button class="daynav" onclick="shiftDay(-1)">‹</button>
     <button style="text-align:left" onclick="openTodayCal()"><h1>${isToday?"Today":DAY_NAMES[d.getDay()]}</h1><div class="date">${d.toLocaleDateString(undefined,{month:"short",day:"numeric"})} ▾</div></button>
-    <button class="daynav" ${isToday?"disabled":""} onclick="shiftDay(1)">›</button>
+    <button class="daynav" onclick="shiftDay(1)">›</button>
   </div>
   ${topBarHTML()}</div>
+  ${weekStripHTML(d)}
+  ${day.preview?`<p style="font-size:12px;color:var(--muted);margin:0 2px 10px">Previewing the plan — this day is copied from the plan when you first log or add something.</p>`:""}
   <div class="zone">
     <div class="label">Orange zone this week</div>
     <div class="big">${weekMin} <span>/ ${state.goal} min goal</span></div>
@@ -26,13 +58,27 @@ function todayHTML(){
       <div class="hint">${day.orange} min logged today</div>
     </div>
   </div>
-  ${["move","meal","mind"].map(g=>`
+  ${cats.map(c=>{
+    const items = groups.get(c.id), evs = gc?.byCat[c.id] || [];
+    return `
     <div class="sec">
-      <div class="sec-h"><h2>${TYPE_LABEL[g]}</h2><button class="addbtn" onclick="openAdd('${g}')">+ Add</button></div>
+      <div class="sec-h"><h2>${esc(c.name)}</h2><button class="addbtn" onclick="openAdd('${c.id}')">+ Add</button></div>
       <div class="card">
-        ${groups[g].length ? groups[g].map(itemHTML).join("") : `<div class="empty">Nothing planned — add something if you like.</div>`}
+        ${items.map(itemHTML).join("")}${evs.map(gcalEvRow).join("")}
+        ${items.length||evs.length ? "" : `<div class="empty">Nothing planned — add something if you like.</div>`}
       </div>
-    </div>`).join("")}`;
+    </div>`;
+  }).join("")}
+  ${other.length?`
+    <div class="sec">
+      <div class="sec-h"><h2>Other</h2></div>
+      <div class="card">${other.map(itemHTML).join("")}</div>
+    </div>`:""}
+  ${gc && (gc.loading || gc.other.length)?`
+    <div class="sec">
+      <div class="sec-h"><h2>Calendar</h2></div>
+      <div class="card">${gc.loading?`<div class="empty">Loading calendar events…</div>`:gc.other.map(gcalEvRow).join("")}</div>
+    </div>`:""}`;
 }
 function itemHTML(it){
   const mark = {done:"✓", swapped:"↷", skipped:"✕", planned:""}[it.status];
@@ -96,7 +142,8 @@ function shiftDay(n){
   render();
 }
 function openTodayCal(){
-  openCalendar(viewDate||new Date(), d=>{ viewDate = todayKey(d)===todayKey() ? null : d; render(); }, {max:new Date()});
+  /* Future dates allowed — they render as a non-materialized plan preview. */
+  openCalendar(viewDate||new Date(), d=>{ viewDate = todayKey(d)===todayKey() ? null : d; render(); });
 }
 function openPlanCal(){
   openCalendar(planWeek||new Date(), d=>{ d.setDate(d.getDate()-((d.getDay()+6)%7)); planWeek = d; render(); });
@@ -105,6 +152,7 @@ function openTrendCal(){
   openCalendar(trendEnd||new Date(), d=>{ trendEnd = todayKey(d)===todayKey() ? null : d; trendSel = null; render(); }, {max:new Date()});
 }
 function bumpOrange(n){
+  materializeDay(viewDate || new Date());   /* no-op unless viewing a preview day */
   const day = state.days[viewKey()];
   day.orange = Math.max(0, day.orange + n);
   save(); render();
@@ -122,6 +170,13 @@ function weekOrange(){
 /* ---------- item action sheet ---------- */
 let activeItem = null;
 function openItem(id){
+  if(id.startsWith("pv")){   /* preview item on a future day — materialize first */
+    materializeDay(viewDate || new Date());
+    const real = state.days[viewKey()].items.find(x=>x.tid===id.slice(2));
+    if(!real) { render(); return; }
+    id = real.id;
+    render();
+  }
   const day = state.days[viewKey()];
   const it = day.items.find(x=>x.id===id); if(!it) return;
   activeItem = it;
@@ -197,6 +252,7 @@ function renderAddSheet(){
   const {kind, type} = addCtx;
   const showWo = type==="move" && state.workouts.length;
   const avail = state.workouts.filter(w=>!addDraft.wos.includes(w.id));
+  const toCal = kind==="plan" && gcalPushEnabled();   /* plan items can be pushed to Google Calendar */
   openSheet(`
     <h3>${kind==="today" ? "Add to today" : "Add to "+DAY_NAMES[planDay]}</h3>
     <p class="sub">${kind==="today" ? "Just for today — edit the Plan tab for every week." : ""}</p>
@@ -212,12 +268,20 @@ function renderAddSheet(){
     <input class="field" id="addT" placeholder="${type==='meal'?'e.g. Smoothie':'e.g. Evening walk'}" value="${esc(addDraft.t)}">
     <label class="fl">Details (optional)</label>
     <input class="field" id="addD" placeholder="" value="${esc(addDraft.d)}">
+    ${toCal?`
+    <div class="numrow">
+      <div><label class="fl">Calendar time</label><input class="field" type="time" id="addTime" value="${esc(addDraft.time||gcalDefTime())}"></div>
+      <div><label class="fl">Duration (min)</label><input class="field" type="number" min="5" id="addDur" value="${esc(addDraft.dur||"45")}"></div>
+    </div>
+    <p class="sub">${planWeek?"Added as a one-off event that week on ":"Added as a weekly recurring event on "}<b>${esc(gcalTargetCal().summary)}</b>.</p>`:""}
     <button class="primary" onclick="saveAdd()">Add</button>
   `);
 }
 function snapAdd(){
   addDraft.t = document.getElementById("addT")?.value ?? addDraft.t;
   addDraft.d = document.getElementById("addD")?.value ?? addDraft.d;
+  addDraft.time = document.getElementById("addTime")?.value ?? addDraft.time;
+  addDraft.dur = document.getElementById("addDur")?.value ?? addDraft.dur;
 }
 function pickWo(id){ if(!id) return; snapAdd(); addDraft.wos.push(id); renderAddSheet(); }
 function unpickWo(id){ snapAdd(); addDraft.wos = addDraft.wos.filter(x=>x!==id); renderAddSheet(); }
@@ -227,6 +291,7 @@ function saveAdd(){
   const t = addDraft.t.trim();
   if(!t && !addDraft.wos.length) return;
   if(kind==="today"){
+    materializeDay(viewDate || new Date());   /* no-op unless viewing a preview day */
     const day = state.days[viewKey()];
     addDraft.wos.forEach(id=>{
       const w = woById(id); if(!w) return;
@@ -235,11 +300,16 @@ function saveAdd(){
     if(t) day.items.push({id:uid(), type, title:t, detail:addDraft.d.trim(), status:"done", actual:""});
   } else {
     const list = ensureWeekCopy()[planDay];
+    const added = [];
     addDraft.wos.forEach(id=>{
       const w = woById(id); if(!w) return;
-      list.push({id:uid(), type:"move", title:w.name, detail:woSummary(w), workoutId:w.id});
+      const it = {id:uid(), type:"move", title:w.name, detail:woSummary(w), workoutId:w.id};
+      list.push(it); added.push(it);
     });
-    if(t) list.push({id:uid(), type, title:t, detail:addDraft.d.trim()});
+    if(t){ const it = {id:uid(), type, title:t, detail:addDraft.d.trim()}; list.push(it); added.push(it); }
+    /* Optional Google Calendar push (Settings → Google Calendar). Weekly
+       template → recurring event; specific week → one-off event that week. */
+    gcalPushPlanItems(added, {dow:planDay, weekMonday:planWeek, time:addDraft.time, dur:addDraft.dur});
   }
   save(); closeSheet(); render();
 }

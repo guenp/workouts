@@ -364,7 +364,9 @@ function woAddToDate(id, date){
 function woAddToTemplate(id, dow){
   const w = woById(id); if(!w) return;
   state.template[dow] = state.template[dow] || [];
-  state.template[dow].push(woAsItem(w, false));
+  const it = woAsItem(w, false);
+  state.template[dow].push(it);
+  gcalPushPlanItems([it], {dow, weekMonday:null, dur:woMinutes(w)});   /* optional calendar push */
   save(); closeSheet();
   openSheet(`<h3>Added</h3><p class="sub">"${esc(w.name)}" is now in every ${DAY_NAMES[dow]}'s plan. Edit it on the Plan tab.</p>
     <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.check}</span> Done</button>`);
