@@ -267,6 +267,7 @@ const EXAMPLE_FILES = [
   "examples/strength-routines.json",
   "examples/vinyasa-yoga.json",
   "examples/superset-circuits.json",
+  "examples/full-body-supersets.json",
   "examples/pilates-and-recovery.json",
   "examples/weekly-plan.json"
 ];

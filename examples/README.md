@@ -9,7 +9,8 @@ Importable sample data in the app's export format.
 | `seven-minute-workouts.json` | The NYT/ACSM 7-Minute Workout and the Advanced 7-Minute Workout, in a "7-Minute Workouts" folder |
 | `strength-routines.json` | Full-body dumbbell, lower body & glutes, upper-body push/pull (with supersets), and a core circuit |
 | `vinyasa-yoga.json` | Sun Salutation A rounds and a power flow with side-alternating superset sequences — hold a standing pose on one side, vinyasa (plank → chaturanga → cobra → down dog) through to the other side. includes a custom "Chaturanga" exercise (text-only in FIT export, no Garmin media). Plus an evening wind-down |
-| `superset-circuits.json` | Three superset sessions in a "Superset Circuits" folder: a ~35-min full-body (arm+leg supersets, warm-up, core, foam-roll cooldown), a ~20-min HIIT cardio blast (three-exercise circuit), and a ~25-min kettlebell session |
+| `superset-circuits.json` | Two superset sessions in a "Superset Circuits" folder: a ~20-min HIIT cardio blast (three-exercise circuit) and a ~25-min kettlebell session |
+| `full-body-supersets.json` | Full Body Superset I–VI: six ~30-min sessions with the same arc (dynamic warm-up → three arm/leg + core supersets → stretching & foam rolling) but different equipment and pairings — dumbbells, pull-up bar, barbell/gym machines, bodyweight-only, and pilates-core variations |
 | `pilates-and-recovery.json` | A ~15-min classical pilates core sequence and a ~20-min recovery day (yoga holds, per-side pigeon/hip-flexor via 2 sets, full foam-roll circuit) |
 | `weekly-plan.json` | A sample recurring weekly template: workouts + daily meals (breakfast/lunch/snack/dinner) + a mind practice, demonstrating the meal-planning flow |
 
