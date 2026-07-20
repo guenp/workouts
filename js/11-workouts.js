@@ -337,14 +337,15 @@ function woOverviewHTML(){
   const L = grpLetters(w);
   const order = woOrder(), wi = order.findIndex(x=>x.id===w.id);
   return `
-  <div class="top"><div style="display:flex;align-items:center;gap:6px;min-width:0">
-    <button class="daynav" onclick="woViewId=null;editExList=false;render()">‹</button><h1 style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(w.name)}</h1>
-    <span style="display:flex;gap:2px;flex-shrink:0">
+  <div class="top" style="margin-bottom:8px"><div style="display:flex;align-items:center;gap:6px">
+    <button class="daynav" onclick="woViewId=null;editExList=false;render()" aria-label="Back to workouts">‹</button>
+    <span style="display:flex;gap:2px">
       <button class="daynav" onclick="woNav(-1)" ${wi>0?"":"disabled"} aria-label="Previous workout" title="Previous workout" data-tip="Previous workout">‹</button>
       <button class="daynav" onclick="woNav(1)" ${wi>=0&&wi<order.length-1?"":"disabled"} aria-label="Next workout" title="Next workout" data-tip="Next workout">›</button>
     </span>
   </div>${topBarHTML()}</div>
-  <p class="sub" style="margin:-4px 0 10px 2px">${w.exercises.length} exercise${w.exercises.length===1?"":"s"} · ≈${woMinutes(w)} min</p>
+  <h1 style="font-size:26px;font-weight:700;letter-spacing:-0.5px;line-height:1.2;overflow-wrap:anywhere;margin:0 2px 2px">${esc(w.name)}</h1>
+  <p class="sub" style="margin:0 0 10px 2px">${w.exercises.length} exercise${w.exercises.length===1?"":"s"} · ≈${woMinutes(w)} min</p>
   <button class="primary" style="font-size:16px" onclick="beginWorkout()" ${w.exercises.length?"":"disabled"}>▶︎ Begin workout</button>
   <div style="display:flex;gap:8px;margin:10px 0 4px">
     <button class="iconbtn" onclick="openRenameWo()" title="Rename" data-tip="Rename workout" aria-label="Rename">${ICON.pencil}</button>
