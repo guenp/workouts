@@ -157,6 +157,7 @@ function openGcalMenu(){
         <span>${esc(c.summary)}${c.primary?" <small style='color:var(--muted)'>· primary</small>":""}${/reader/i.test(c.accessRole)?" <small style='color:var(--muted)'>· read-only</small>":""}</span></label>`).join("")
       : `<p class="sub">No calendars found.</p>`}
     <button class="sheet-btn" onclick="openGcalNew()"><span>${ICON.spark}</span> Create a new calendar…</button>
+    ${GCAL.dayStats && GCAL.dayStats.k===todayKey() ? `<p class="sub" style="margin-top:6px">Today: ${GCAL.dayStats.total} event${GCAL.dayStats.total===1?"":"s"} fetched${GCAL.dayStats.calsOk!=null?` from ${GCAL.dayStats.calsOk}/${GCAL.dayStats.calsSel} calendar${GCAL.dayStats.calsSel===1?"":"s"}`:""} · ${GCAL.dayStats.total-GCAL.dayStats.hidden} shown · ${GCAL.dayStats.hidden} linked to items${GCAL.dayStats.calsOk!=null && GCAL.dayStats.calsOk<GCAL.dayStats.calsSel?` — some calendars failed to load, try Disconnect + reconnect`:""}</p>`:""}
     <p class="sub" style="margin-top:14px">Plans → calendar</p>
     <label class="checkrow"><input type="checkbox" ${gcalPushPref()?"checked":""} onchange="toggleGcalPush(this)">
       <span>Add new plan items to a calendar too — weekly-plan items become recurring events, specific-week items one-off events. Categories are stored on the events.</span></label>
@@ -231,16 +232,47 @@ function gcalDayData(k){
   /* Ids linked from the items this day displays. Preview (future) days show
      plan items, so derive from the plan there. */
   const items = state.days[k]?.items || planItemsFor(new Date(k+"T12:00"));
-  const linked = new Set();
-  items.forEach(it=>{ if(it.gcalEventId) linked.add(it.gcalEventId); if(it.gcalEvId) linked.add(it.gcalEvId); });
+  const linked = new Set(), seriesTime = new Map();
+  items.forEach(it=>{
+    if(it.gcalEventId){ linked.add(it.gcalEventId); if(it.gcalTime) seriesTime.set(it.gcalEventId, it.gcalTime); }
+    if(it.gcalEvId) linked.add(it.gcalEvId);
+  });
+  /* An item hides at most ONE event: its exact id, or — for a linked
+     recurring series — the single instance closest to the item's time.
+     Extra same-day instances (a moved occurrence, duplicates) stay visible;
+     hiding the whole series once made real events invisible in the app. */
+  const hide = new Set(), bySeries = new Map();
+  evs.forEach((e,i)=>{
+    if(linked.has(e.id)){ hide.add(i); return; }
+    if(e.recurringEventId && linked.has(e.recurringEventId)){
+      if(!bySeries.has(e.recurringEventId)) bySeries.set(e.recurringEventId, []);
+      bySeries.get(e.recurringEventId).push(i);
+    }
+  });
+  for(const [sid, idxs] of bySeries){
+    let best = idxs[0], bestD = Infinity;
+    const t = seriesTime.get(sid);
+    if(t && idxs.length > 1){
+      const tm = (+t.slice(0,2))*60 + (+t.slice(3,5));
+      for(const i of idxs){
+        const e = evs[i]; if(!e.start?.dateTime) continue;
+        const d0 = new Date(e.start.dateTime);
+        const diff = Math.abs(d0.getHours()*60 + d0.getMinutes() - tm);
+        if(diff < bestD){ bestD = diff; best = i; }
+      }
+    }
+    hide.add(best);
+  }
   const byCat = {}, other = [];
   evs.forEach((e,i)=>{
-    if(linked.has(e.id) || (e.recurringEventId && linked.has(e.recurringEventId))) return;   // already shown as an item
+    if(hide.has(i)) return;
     const p = e.extendedProperties?.private;
     const x = {e, i};
     if(p?.woCat && CATS().some(c=>c.id===p.woCat)) (byCat[p.woCat] = byCat[p.woCat]||[]).push(x);
     else other.push(x);
   });
+  GCAL.dayStats = {k, total: evs.length, hidden: hide.size,
+    calsOk: GCAL.evOk[k] ? GCAL.evOk[k].size : null, calsSel: gcalCals().length};
   return {loading:false, byCat, other};
 }
 async function gcalFetchDay(k){
