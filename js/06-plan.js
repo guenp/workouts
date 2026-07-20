@@ -81,8 +81,9 @@ function planForm(h, t, d, btns){
 function savePlanEdit(){
   activePlan.title = document.getElementById("pT").value.trim() || activePlan.title;
   activePlan.detail = document.getElementById("pD").value.trim();
-  if(activePlan.gcalEventId)   /* keep the linked Google Calendar event in step */
-    gcalPatchEvent(activePlan.gcalCalId, activePlan.gcalEventId, {summary:activePlan.title, description:activePlan.detail});
+  if(activePlan.gcalEventId)   /* keep the linked Google Calendar event in step (preserve the category meta block) */
+    gcalPatchEvent(activePlan.gcalCalId, activePlan.gcalEventId,
+      {summary:activePlan.title, description:gcalMetaWrite(activePlan.detail, catName(activePlan.type))});
   save(); closeSheet(); render();
 }
 function deletePlanItem(){

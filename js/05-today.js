@@ -194,6 +194,7 @@ function openItem(id){
     <p class="sub">${esc(it.detail||"")}</p>
     ${it.workoutId && woById(it.workoutId) ? `<button class="sheet-btn" onclick="closeSheet();woViewId='${it.workoutId}';setTab('workouts')"><span>${ICON.open}</span> Go to workout</button>` : ""}
     ${it.gcalEventId ? `<button class="sheet-btn" onclick="openItemCal()"><span>${ICON.cal}</span> Calendar event: ${esc(it.gcalTime||"")}${it.gcalTime?" on ":"On "}${esc(it.gcalCalName||"calendar")}…</button>` : ""}
+    <button class="sheet-btn" onclick="openItemCat()"><span>${ICON.pencil}</span> Category: ${esc(catName(it.type))}…</button>
     <button class="sheet-btn" onclick="setStatus('done')"><span>✓</span> Did it as planned</button>
     <button class="sheet-btn" onclick="showSwap()"><span>↷</span> Did / ate something else</button>
     <button class="sheet-btn" onclick="setStatus('skipped')"><span>✕</span> Skipped it</button>

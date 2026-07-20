@@ -266,9 +266,9 @@ function gcalDayData(k){
   const byCat = {}, other = [];
   evs.forEach((e,i)=>{
     if(hide.has(i)) return;
-    const p = e.extendedProperties?.private;
     const x = {e, i};
-    if(p?.woCat && CATS().some(c=>c.id===p.woCat)) (byCat[p.woCat] = byCat[p.woCat]||[]).push(x);
+    const cid = gcalEvCat(e);
+    if(cid) (byCat[cid] = byCat[cid]||[]).push(x);
     else other.push(x);
   });
   GCAL.dayStats = {k, total: evs.length, hidden: hide.size,
@@ -288,7 +288,7 @@ async function gcalFetchDay(k){
         const resp = await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(c.id)}/events?`+q);
         if(!resp.ok) throw new Error("events list "+resp.status);
         const r = await resp.json();
-        (r.items||[]).forEach(e=>{ if(e.status!=="cancelled") all.push({...e, calName:c.summary}); });
+        (r.items||[]).forEach(e=>{ if(e.status!=="cancelled") all.push({...e, calName:c.summary, calId:c.id}); });
         okCals.add(c.id);   // only successfully fetched calendars may be reconciled
       }catch(e){ console.error(e); }
     }
@@ -309,7 +309,7 @@ function gcalEvRow(x){
 }
 function openGcalEvent(i){
   const e = GCAL.dayList?.[i]; if(!e) return;
-  const desc = (e.description||"").replace(/<[^>]*>/g,"").slice(0,300);
+  const desc = gcalMetaStrip(e.description).slice(0,300);
   openSheet(`
     <h3>${esc(e.summary||"(no title)")}</h3>
     <p class="sub">${esc(gcalEvTime(e))} · ${esc(e.calName||"")}${e.location?" · "+esc(e.location):""}</p>
@@ -325,7 +325,46 @@ function gcalEvToDay(i, ci){
   const e = GCAL.dayList?.[i], c = CATS()[ci]; if(!e || !c) return;
   materializeDay(viewDate || new Date());
   state.days[viewKey()].items.push({id:uid(), type:c.id, title:e.summary||"Calendar event",
-    detail:gcalEvTime(e), status:"planned", actual:"", gcalEvId:e.id});
+    detail:gcalEvTime(e), status:"planned", actual:"", gcalEvId:e.id, gcalEvCalId:e.calId||null});
+  if(e.calId) gcalSetEventCat(e.calId, e.id, c);   // write the category back to the event (best effort)
+  save(); closeSheet(); render();
+}
+/* Write the category onto the event: description meta block (source of
+   truth, user-editable in Google Calendar) + woCat extendedProperty.
+   GET-then-PATCH so the user's own description text and other private
+   extendedProperty keys are preserved. Fails silently on read-only
+   calendars — the local item keeps its category regardless. */
+async function gcalSetEventCat(calId, evId, cat){
+  if(!GCAL.token || !calId || !evId) return;
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(evId)}`;
+  try{
+    gcalMarkMut(evId);
+    const r = await (await cfetch(url)).json();
+    if(!r.id) return;
+    await cfetch(url, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({
+      description: gcalMetaWrite(r.description, cat.name),
+      extendedProperties: {private: {...(r.extendedProperties?.private||{}), woCat:cat.id, woCatName:cat.name}}
+    })});
+    gcalInvalidate();
+  }catch(e){ console.error("category write failed", e); }
+}
+/* Category sheet for a day/plan item (caller sets activeItem). Changing it
+   also updates the linked event when there is one. */
+function openItemCat(){
+  const it = activeItem; if(!it) return;
+  const hasEv = !!(it.gcalEventId || it.gcalEvId);
+  openSheet(`
+    <h3>Category</h3>
+    <p class="sub">${esc(it.title)}${hasEv?" — also updates the calendar event (in the Workouts app section of its description, which you can edit from Google Calendar too)":""}</p>
+    <div class="chips">${CATS().map((c,ci)=>`<button class="${c.id===it.type?'on':''}" onclick="setItemCat(${ci})">${esc(c.name)}</button>`).join("")}</div>
+    <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
+}
+function setItemCat(ci){
+  const it = activeItem, c = CATS()[ci]; if(!it || !c) return;
+  it.type = c.id;
+  const evId = it.gcalEventId || it.gcalEvId;
+  const calId = it.gcalCalId || it.gcalEvCalId;
+  if(evId && calId) gcalSetEventCat(calId, evId, c);
   save(); closeSheet(); render();
 }
 
@@ -333,6 +372,55 @@ function gcalEvToDay(i, ci){
    Linked items carry gcalEventId/gcalCalId (so edits/deletes propagate) plus
    display-only gcalCalName/gcalTime for the Today/Plan cue — the cue is a
    snapshot; openItemCal() re-reads the live event before editing. */
+/* ---- category metadata in the event DESCRIPTION (source of truth) ----
+   Users can't edit extendedProperties from the Google Calendar UI, so the
+   category also lives in a human-editable block at the end of the
+   description:
+
+     --- Workouts app ---
+     Category: Move
+
+   Reading is priority description > woCat extendedProperty (the description
+   is what the user can change in Google Calendar). Parsing is tolerant of
+   the HTML Google wraps descriptions in after UI edits (<br>, <p>, entities
+   are normalized first). Writing appends/replaces the block on the RAW
+   description to preserve the user's own text. */
+const GCAL_META_HDR = "--- Workouts app ---";
+function gcalDescText(desc){
+  return String(desc||"").replace(/<br\s*\/?>/gi,"\n").replace(/<\/(p|div|li)>/gi,"\n")
+    .replace(/<[^>]*>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&");
+}
+function gcalMetaStrip(desc){
+  const txt = gcalDescText(desc);
+  const i = txt.indexOf(GCAL_META_HDR);
+  return (i < 0 ? txt : txt.slice(0, i)).trimEnd();
+}
+function gcalMetaCat(desc){
+  const txt = gcalDescText(desc);
+  const i = txt.indexOf(GCAL_META_HDR);
+  if(i < 0) return null;
+  const m = txt.slice(i).match(/Category:\s*(.+)/i);
+  return m ? m[1].trim() : null;
+}
+function gcalMetaWrite(desc, catNm){
+  let base = String(desc||"");
+  const i = base.indexOf(GCAL_META_HDR);
+  if(i >= 0) base = base.slice(0, i);   // replace our previous block (best effort on HTML-wrapped text)
+  base = base.replace(/(\s|<br\s*\/?>)+$/i, "");
+  return (base ? base + "\n\n" : "") + GCAL_META_HDR + "\nCategory: " + catNm;
+}
+function catIdByName(n){
+  if(!n) return null;
+  n = n.trim().toLowerCase();
+  return CATS().find(c=>c.name.trim().toLowerCase()===n)?.id || null;
+}
+/* Resolved category id for an event, or null. */
+function gcalEvCat(e){
+  const metaId = catIdByName(gcalMetaCat(e.description));
+  if(metaId) return metaId;
+  const p = e.extendedProperties?.private;
+  return (p?.woCat && CATS().some(c=>c.id===p.woCat)) ? p.woCat : null;
+}
 function gcalFmtLocal(d){ const p=n=>String(n).padStart(2,"0"); return `${todayKey(d)}T${p(d.getHours())}:${p(d.getMinutes())}:00`; }
 function gcalLinkItem(it, evId, cal, time){
   it.gcalEventId = evId; it.gcalCalId = cal.id;
@@ -343,7 +431,7 @@ async function gcalCreateEvent(it, sd, ed, recurrence){
   const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
   try{
     const body = {
-      summary: it.title, description: it.detail || "",
+      summary: it.title, description: gcalMetaWrite(it.detail || "", catName(it.type)),
       start: {dateTime: gcalFmtLocal(sd), timeZone: TZ},
       end:   {dateTime: gcalFmtLocal(ed), timeZone: TZ},
       extendedProperties: {private: {woApp:"1", woCat:String(it.type), woCatName:catName(it.type)}}
@@ -435,13 +523,15 @@ async function gcalReconcileDay(k){
   if(!evs || !GCAL.token) return false;
   const okCals = GCAL.evOk[k];
   if(!okCals || !okCals.size) return false;
-  const present = new Set(), remoteTime = new Map();   // evId -> "HH:MM" from the fetched instance
+  const present = new Set(), remoteTime = new Map(), remoteCat = new Map();   // evId -> "HH:MM" / category id
   evs.forEach(e=>{
     present.add(e.id);
     let t = null;
     if(e.start?.dateTime){ const d=new Date(e.start.dateTime), p=n=>String(n).padStart(2,"0"); t = p(d.getHours())+":"+p(d.getMinutes()); }
+    const cid = gcalEvCat(e);
     if(t) remoteTime.set(e.id, t);
-    if(e.recurringEventId){ present.add(e.recurringEventId); if(t) remoteTime.set(e.recurringEventId, t); }
+    if(cid) remoteCat.set(e.id, cid);
+    if(e.recurringEventId){ present.add(e.recurringEventId); if(t) remoteTime.set(e.recurringEventId, t); if(cid) remoteCat.set(e.recurringEventId, cid); }
   });
   const day = state.days[k];
   let changed = false;
@@ -449,11 +539,19 @@ async function gcalReconcileDay(k){
      Skip events we mutated ourselves recently: the list may still be stale. */
   const seen = new Set();
   (day?.items||[]).forEach(it=>{
-    const t = it.gcalEventId && remoteTime.get(it.gcalEventId);
-    if(!t || t===it.gcalTime || seen.has(it.gcalEventId) || gcalRecentlyMut(it.gcalEventId)) return;
-    seen.add(it.gcalEventId);
-    gcalSyncLinks(it.gcalEventId, {gcalTime:t});
-    changed = true;
+    const evId = it.gcalEventId;
+    if(evId && !seen.has(evId) && !gcalRecentlyMut(evId)){
+      const patch = {};
+      const t = remoteTime.get(evId), cid = remoteCat.get(evId);
+      if(t && t!==it.gcalTime) patch.gcalTime = t;
+      if(cid && cid!==it.type) patch.type = cid;   // description is the source of truth for the category
+      if(Object.keys(patch).length){ seen.add(evId); gcalSyncLinks(evId, patch); changed = true; }
+    }
+    /* items logged FROM an external event (gcalEvId): local copy only */
+    if(it.gcalEvId && !gcalRecentlyMut(it.gcalEvId)){
+      const cid = remoteCat.get(it.gcalEvId);
+      if(cid && cid!==it.type){ it.type = cid; changed = true; }
+    }
   });
   const gone = new Map();   // evId -> calId (candidates only — verified below)
   (day?.items||[]).forEach(it=>{
