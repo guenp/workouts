@@ -234,6 +234,7 @@ async function gcalFetchDay(k){
     }
     all.sort((a,b)=>(a.start?.dateTime||a.start?.date||"").localeCompare(b.start?.dateTime||b.start?.date||""));
     GCAL.ev[k] = all;
+    try{ await gcalReconcileDay(k); }catch(e){ console.error(e); }   // mirror deletions made in Google Calendar
   }catch(e){ GCAL.ev[k] = []; }
   delete GCAL.evLoading[k];
   if(tab==="today" && viewKey()===k) render();
@@ -342,6 +343,63 @@ function gcalSyncLinks(evId, patch){
   for(let d=0; d<7; d++) (state.template[d]||[]).forEach(apply);
   Object.values(state.weekPlans||{}).forEach(wk => { for(let d=0; d<7; d++) (wk[d]||[]).forEach(apply); });
   Object.values(state.days||{}).forEach(day => (day.items||[]).forEach(apply));
+}
+/* Is this event id owned by a plan item (weekly template or a week
+   override)? Those are recurring-series events: a single day's materialized
+   copy must NOT delete them. */
+function gcalEventInPlans(evId){
+  for(let d=0; d<7; d++) if((state.template[d]||[]).some(x=>x.gcalEventId===evId)) return true;
+  for(const wk of Object.values(state.weekPlans||{}))
+    for(let d=0; d<7; d++) if((wk[d]||[]).some(x=>x.gcalEventId===evId)) return true;
+  return false;
+}
+function removePlanItemsByEvent(evId){
+  for(let d=0; d<7; d++) state.template[d] = (state.template[d]||[]).filter(x=>x.gcalEventId!==evId);
+  Object.values(state.weekPlans||{}).forEach(wk=>{ for(let d=0; d<7; d++) if(wk[d]) wk[d] = wk[d].filter(x=>x.gcalEventId!==evId); });
+}
+/* ---- calendar → app deletion sync ----
+   Runs after each day fetch. If a linked event no longer exists among the
+   fetched events, the deletion happened in Google Calendar; mirror it here.
+   Only events on calendars SELECTED FOR DISPLAY can be reconciled (others
+   were never fetched — absence proves nothing). Planned day items are
+   removed; logged ones (done/swapped/skipped) are history and only lose
+   their link. Plan items (recurring series) are removed only after a direct
+   GET confirms the series is gone — a missing instance on one day could be
+   a single-occurrence deletion. */
+async function gcalReconcileDay(k){
+  const evs = GCAL.ev[k];
+  if(!evs || !GCAL.token) return false;
+  const fetchedCals = new Set(gcalCals().map(c=>c.id));
+  const present = new Set();
+  evs.forEach(e=>{ present.add(e.id); if(e.recurringEventId) present.add(e.recurringEventId); });
+  const day = state.days[k];
+  const gone = new Map();   // evId -> calId
+  (day?.items||[]).forEach(it=>{
+    if(it.gcalEventId && fetchedCals.has(it.gcalCalId) && !present.has(it.gcalEventId))
+      gone.set(it.gcalEventId, it.gcalCalId);
+  });
+  if(!gone.size) return false;
+  let changed = false;
+  const goneSet = new Set(gone.keys());
+  const before = day.items.length;
+  day.items = day.items.filter(it => !(it.gcalEventId && goneSet.has(it.gcalEventId) && it.status==="planned"));
+  if(day.items.length !== before) changed = true;
+  for(const [evId, calId] of gone){
+    if(!gcalEventInPlans(evId)){ gcalSyncLinks(evId, null); changed = true; continue; }   // one-off: just unlink leftovers
+    let deleted = false;
+    try{
+      const r = await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(evId)}`);
+      if(r.status===404 || r.status===410) deleted = true;
+      else { const j = await r.json(); deleted = !j.id || j.status==="cancelled"; }
+    }catch(e){}
+    if(deleted){
+      removePlanItemsByEvent(evId);
+      gcalSyncLinks(evId, null);   // unlink surviving (logged) day copies
+      changed = true;
+    }
+  }
+  if(changed) save();
+  return changed;
 }
 /* ---- edit sheet for a linked event (opened from an item's action sheet;
    the caller sets activeItem first — plan items reuse it too) ---- */

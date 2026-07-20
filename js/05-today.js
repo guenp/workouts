@@ -249,6 +249,11 @@ function mealSit(sev){
 }
 function removeItem(){
   const day = state.days[viewKey()];
+  /* A one-off calendar event created for this item dies with it. Recurring
+     series events belong to the plan item — deleting one day's copy keeps
+     the series (delete it from the Plan tab instead). */
+  if(activeItem.gcalEventId && !gcalEventInPlans(activeItem.gcalEventId))
+    gcalDeleteEvent(activeItem.gcalCalId, activeItem.gcalEventId);
   day.items = day.items.filter(x=>x.id!==activeItem.id);
   save(); closeSheet(); render();
 }

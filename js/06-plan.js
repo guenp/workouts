@@ -86,7 +86,10 @@ function savePlanEdit(){
   save(); closeSheet(); render();
 }
 function deletePlanItem(){
-  if(activePlan.gcalEventId) gcalDeleteEvent(activePlan.gcalCalId, activePlan.gcalEventId);
+  if(activePlan.gcalEventId){
+    gcalDeleteEvent(activePlan.gcalCalId, activePlan.gcalEventId);
+    gcalSyncLinks(activePlan.gcalEventId, null);   // clear the cue on materialized day copies
+  }
   const target = ensureWeekCopy();
   target[planDay] = target[planDay].filter(x=>x.id!==activePlan.id);
   save(); closeSheet(); render();
