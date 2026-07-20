@@ -300,13 +300,49 @@ function newWorkout(){
   save(); render(); openRenameWo();
 }
 function fmtSecs(x){ const m = Math.floor(x/60); return m ? m+":"+String(x%60).padStart(2,"0") : String(x); }
+/* Library display order: loose workouts first, then each folder's workouts
+   (folder open/closed doesn't matter for navigation). */
+function woOrder(){
+  const out = state.workouts.filter(w=>!w.folderId);
+  (state.woFolders||[]).forEach(f=> state.workouts.filter(w=>w.folderId===f.id).forEach(w=>out.push(w)));
+  return out;
+}
+/* Step to the previous (-1) / next (+1) workout in library order. Used by the
+   overview's top arrows and the swipe gesture below. */
+function woNav(dir){
+  const list = woOrder(), i = list.findIndex(w=>w.id===woViewId), j = i + dir;
+  if(i < 0 || j < 0 || j >= list.length) return;
+  woViewId = list[j].id; editExList = false; render();
+}
+/* Swipe left/right on the workout overview (touch devices) = next/previous
+   workout. Passive document-level listeners; guarded so they never fire while
+   a sheet, the player, or exercise edit mode (drag-reorder) is active. */
+let woSwipeX = null, woSwipeY = 0;
+document.addEventListener("touchstart", ev=>{
+  woSwipeX = null;
+  if(tab !== "workouts" || !woViewId || PLAYER || editExList) return;
+  if(document.getElementById("sheet")?.classList.contains("open")) return;
+  if(ev.target.closest && ev.target.closest("input,textarea,select,.draghandle,.pencilbtn")) return;
+  woSwipeX = ev.touches[0].clientX; woSwipeY = ev.touches[0].clientY;
+}, {passive:true});
+document.addEventListener("touchend", ev=>{
+  if(woSwipeX === null) return;
+  const t = ev.changedTouches[0], dx = t.clientX - woSwipeX, dy = t.clientY - woSwipeY;
+  woSwipeX = null;
+  if(Math.abs(dx) > 60 && Math.abs(dx) > 1.8*Math.abs(dy)) woNav(dx < 0 ? 1 : -1);
+}, {passive:true});
 function woOverviewHTML(){
   const w = woById(woViewId);
   if(!w){ woViewId = null; return workoutsHTML(); }
   const L = grpLetters(w);
+  const order = woOrder(), wi = order.findIndex(x=>x.id===w.id);
   return `
   <div class="top"><div style="display:flex;align-items:center;gap:6px;min-width:0">
     <button class="daynav" onclick="woViewId=null;editExList=false;render()">‹</button><h1 style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(w.name)}</h1>
+    <span style="display:flex;gap:2px;flex-shrink:0">
+      <button class="daynav" onclick="woNav(-1)" ${wi>0?"":"disabled"} aria-label="Previous workout" title="Previous workout" data-tip="Previous workout">‹</button>
+      <button class="daynav" onclick="woNav(1)" ${wi>=0&&wi<order.length-1?"":"disabled"} aria-label="Next workout" title="Next workout" data-tip="Next workout">›</button>
+    </span>
   </div>${topBarHTML()}</div>
   <p class="sub" style="margin:-4px 0 10px 2px">${w.exercises.length} exercise${w.exercises.length===1?"":"s"} · ≈${woMinutes(w)} min</p>
   <button class="primary" style="font-size:16px" onclick="beginWorkout()" ${w.exercises.length?"":"disabled"}>▶︎ Begin workout</button>
