@@ -28,6 +28,8 @@ const GCAL = {
   ev: {},            // dateKey -> merged, sorted events for that day
   evLoading: {},     // dateKey -> true while a fetch is in flight
   evGen: {},         // dateKey -> generation the data was fetched under
+  evOk: {},          // dateKey -> Set of calendar ids whose fetch SUCCEEDED (reconcile trusts only these)
+  mut: {},           // eventId -> ms timestamp of our last mutation (reconcile grace period)
   gen: 0,            // bumped by gcalInvalidate(); stale days refetch silently
   dayList: null      // events array backing the currently rendered Today tab
 };
@@ -36,6 +38,11 @@ const GCAL = {
    the old data while a background refetch runs, then re-renders. Wiping the
    cache made a "Calendar" loading section flash in and out on every push. */
 function gcalInvalidate(){ GCAL.gen++; }
+/* Events we just created/patched/moved can be missing from Google's LIST
+   endpoint for a short while (eventual consistency) — reconcile must not
+   mistake that for a deletion. */
+function gcalMarkMut(evId){ if(evId) GCAL.mut[evId] = Date.now(); }
+function gcalRecentlyMut(evId){ return Date.now() - (GCAL.mut[evId]||0) < 120000; }
 const GCAL_BYDAY = ["SU","MO","TU","WE","TH","FR","SA"];
 
 /* ---- per-device prefs (localStorage, like Drive's) ---- */
@@ -232,15 +239,18 @@ async function gcalFetchDay(k){
     end.setDate(end.getDate()+1);
     const q = new URLSearchParams({timeMin:start.toISOString(), timeMax:end.toISOString(),
       singleEvents:"true", orderBy:"startTime", maxResults:"50"});
-    const all = [];
+    const all = [], okCals = new Set();
     for(const c of gcalCals()){
       try{
-        const r = await (await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(c.id)}/events?`+q)).json();
+        const resp = await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(c.id)}/events?`+q);
+        if(!resp.ok) throw new Error("events list "+resp.status);
+        const r = await resp.json();
         (r.items||[]).forEach(e=>{ if(e.status!=="cancelled") all.push({...e, calName:c.summary}); });
+        okCals.add(c.id);   // only successfully fetched calendars may be reconciled
       }catch(e){ console.error(e); }
     }
     all.sort((a,b)=>(a.start?.dateTime||a.start?.date||"").localeCompare(b.start?.dateTime||b.start?.date||""));
-    GCAL.ev[k] = all; GCAL.evGen[k] = gen;
+    GCAL.ev[k] = all; GCAL.evGen[k] = gen; GCAL.evOk[k] = okCals;
     try{ await gcalReconcileDay(k); }catch(e){ console.error(e); }   // mirror deletions made in Google Calendar
   }catch(e){ GCAL.ev[k] = GCAL.ev[k] || []; GCAL.evGen[k] = gen; }
   delete GCAL.evLoading[k];
@@ -298,6 +308,7 @@ async function gcalCreateEvent(it, sd, ed, recurrence){
     if(recurrence) body.recurrence = recurrence;
     const r = await (await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`,
       {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)})).json();
+    if(r.id) gcalMarkMut(r.id);
     return r.id ? r : null;
   }catch(e){ console.error("calendar push failed", e); return null; }
 }
@@ -365,45 +376,47 @@ function removePlanItemsByEvent(evId){
   Object.values(state.weekPlans||{}).forEach(wk=>{ for(let d=0; d<7; d++) if(wk[d]) wk[d] = wk[d].filter(x=>x.gcalEventId!==evId); });
 }
 /* ---- calendar → app deletion sync ----
-   Runs after each day fetch. If a linked event no longer exists among the
-   fetched events, the deletion happened in Google Calendar; mirror it here.
-   Only events on calendars SELECTED FOR DISPLAY can be reconciled (others
-   were never fetched — absence proves nothing). Planned day items are
-   removed; logged ones (done/swapped/skipped) are history and only lose
-   their link. Plan items (recurring series) are removed only after a direct
-   GET confirms the series is gone — a missing instance on one day could be
-   a single-occurrence deletion. */
+   Runs after each day fetch and mirrors deletions made in Google Calendar.
+   Absence from the LIST response is only a HINT, never proof: the list can
+   transiently miss a just-patched event (eventual consistency) and a failed
+   per-calendar fetch looks identical to deletion. So removal requires ALL of:
+   1. the event's calendar is selected for display AND its list fetch
+      SUCCEEDED this round (GCAL.evOk[k]);
+   2. we didn't mutate the event ourselves in the last 2 min (gcalMarkMut);
+   3. a direct GET by id — strongly consistent — confirms 404/410/cancelled.
+   Then: planned day items are removed; logged ones (done/swapped/skipped)
+   are history and only lose their link; owning plan items (recurring
+   series) are removed too. */
 async function gcalReconcileDay(k){
   const evs = GCAL.ev[k];
   if(!evs || !GCAL.token) return false;
-  const fetchedCals = new Set(gcalCals().map(c=>c.id));
+  const okCals = GCAL.evOk[k];
+  if(!okCals || !okCals.size) return false;
   const present = new Set();
   evs.forEach(e=>{ present.add(e.id); if(e.recurringEventId) present.add(e.recurringEventId); });
   const day = state.days[k];
-  const gone = new Map();   // evId -> calId
+  const gone = new Map();   // evId -> calId (candidates only — verified below)
   (day?.items||[]).forEach(it=>{
-    if(it.gcalEventId && fetchedCals.has(it.gcalCalId) && !present.has(it.gcalEventId))
+    if(it.gcalEventId && okCals.has(it.gcalCalId) && !present.has(it.gcalEventId) && !gcalRecentlyMut(it.gcalEventId))
       gone.set(it.gcalEventId, it.gcalCalId);
   });
   if(!gone.size) return false;
   let changed = false;
-  const goneSet = new Set(gone.keys());
-  const before = day.items.length;
-  day.items = day.items.filter(it => !(it.gcalEventId && goneSet.has(it.gcalEventId) && it.status==="planned"));
-  if(day.items.length !== before) changed = true;
   for(const [evId, calId] of gone){
-    if(!gcalEventInPlans(evId)){ gcalSyncLinks(evId, null); changed = true; continue; }   // one-off: just unlink leftovers
     let deleted = false;
     try{
       const r = await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(evId)}`);
       if(r.status===404 || r.status===410) deleted = true;
-      else { const j = await r.json(); deleted = !j.id || j.status==="cancelled"; }
+      else if(r.ok){ const j = await r.json(); deleted = !j.id || j.status==="cancelled"; }
+      /* any other status (401 throws in cfetch, 5xx, network): unknown — keep the item */
     }catch(e){}
-    if(deleted){
-      removePlanItemsByEvent(evId);
-      gcalSyncLinks(evId, null);   // unlink surviving (logged) day copies
-      changed = true;
-    }
+    if(!deleted) continue;
+    const before = day.items.length;
+    day.items = day.items.filter(it => !(it.gcalEventId===evId && it.status==="planned"));
+    if(day.items.length !== before) changed = true;
+    if(gcalEventInPlans(evId)){ removePlanItemsByEvent(evId); changed = true; }
+    gcalSyncLinks(evId, null);   // unlink surviving (logged) copies
+    changed = true;
   }
   if(changed) save();
   return changed;
@@ -466,6 +479,7 @@ async function saveItemCal(){
     await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(e.evId)}`,
       {method:"PATCH", headers:{"Content-Type":"application/json"},
        body:JSON.stringify({start:{dateTime:gcalFmtLocal(sd), timeZone:TZ}, end:{dateTime:gcalFmtLocal(ed), timeZone:TZ}})});
+    gcalMarkMut(e.evId);
     gcalSyncLinks(e.evId, {gcalCalId:calId, gcalTime:time, ...(calName?{gcalCalName:calName}:{})});
     gcalInvalidate();
     save();
@@ -485,6 +499,7 @@ function gcalDeleteEvent(calId, evId){
 }
 function gcalPatchEvent(calId, evId, patch){
   if(!GCAL.token || !calId || !evId) return;
+  gcalMarkMut(evId);
   cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(evId)}`,
     {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(patch)})
     .then(()=>{ gcalInvalidate(); }).catch(e=>console.error(e));
