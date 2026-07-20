@@ -29,6 +29,7 @@ const GCAL = {
   evLoading: {},     // dateKey -> true while a fetch is in flight
   evGen: {},         // dateKey -> generation the data was fetched under
   evOk: {},          // dateKey -> Set of calendar ids whose fetch SUCCEEDED (reconcile trusts only these)
+  evAt: {},          // dateKey -> ms timestamp of the last successful fetch (TTL)
   mut: {},           // eventId -> ms timestamp of our last mutation (reconcile grace period)
   gen: 0,            // bumped by gcalInvalidate(); stale days refetch silently
   dayList: null      // events array backing the currently rendered Today tab
@@ -38,6 +39,8 @@ const GCAL = {
    the old data while a background refetch runs, then re-renders. Wiping the
    cache made a "Calendar" loading section flash in and out on every push. */
 function gcalInvalidate(){ GCAL.gen++; }
+const GCAL_TTL = 60000;   /* day data older than this refetches silently — changes made
+                             directly in Google Calendar have no other way in */
 /* Events we just created/patched/moved can be missing from Google's LIST
    endpoint for a short while (eventual consistency) — reconcile must not
    mistake that for a deletion. */
@@ -217,7 +220,7 @@ function gcalEvTime(e){
 function gcalDayData(k){
   if(!GCAL.token || !gcalCals().length) return null;
   const evs = GCAL.ev[k];
-  const fresh = evs && GCAL.evGen[k] === GCAL.gen;
+  const fresh = evs && GCAL.evGen[k] === GCAL.gen && (Date.now() - (GCAL.evAt[k]||0)) < GCAL_TTL;
   if(!fresh && !GCAL.evLoading[k]){ GCAL.evLoading[k] = true; gcalFetchDay(k); }
   if(!evs) return {loading:true, byCat:{}, other:[]};   // stale data keeps rendering while the refetch runs
   GCAL.dayList = evs;
@@ -250,7 +253,7 @@ async function gcalFetchDay(k){
       }catch(e){ console.error(e); }
     }
     all.sort((a,b)=>(a.start?.dateTime||a.start?.date||"").localeCompare(b.start?.dateTime||b.start?.date||""));
-    GCAL.ev[k] = all; GCAL.evGen[k] = gen; GCAL.evOk[k] = okCals;
+    GCAL.ev[k] = all; GCAL.evGen[k] = gen; GCAL.evOk[k] = okCals; GCAL.evAt[k] = Date.now();
     try{ await gcalReconcileDay(k); }catch(e){ console.error(e); }   // mirror deletions made in Google Calendar
   }catch(e){ GCAL.ev[k] = GCAL.ev[k] || []; GCAL.evGen[k] = gen; }
   delete GCAL.evLoading[k];
@@ -392,16 +395,32 @@ async function gcalReconcileDay(k){
   if(!evs || !GCAL.token) return false;
   const okCals = GCAL.evOk[k];
   if(!okCals || !okCals.size) return false;
-  const present = new Set();
-  evs.forEach(e=>{ present.add(e.id); if(e.recurringEventId) present.add(e.recurringEventId); });
+  const present = new Set(), remoteTime = new Map();   // evId -> "HH:MM" from the fetched instance
+  evs.forEach(e=>{
+    present.add(e.id);
+    let t = null;
+    if(e.start?.dateTime){ const d=new Date(e.start.dateTime), p=n=>String(n).padStart(2,"0"); t = p(d.getHours())+":"+p(d.getMinutes()); }
+    if(t) remoteTime.set(e.id, t);
+    if(e.recurringEventId){ present.add(e.recurringEventId); if(t) remoteTime.set(e.recurringEventId, t); }
+  });
   const day = state.days[k];
+  let changed = false;
+  /* Remote time edits → refresh the "▤ time" cue on every linked copy.
+     Skip events we mutated ourselves recently: the list may still be stale. */
+  const seen = new Set();
+  (day?.items||[]).forEach(it=>{
+    const t = it.gcalEventId && remoteTime.get(it.gcalEventId);
+    if(!t || t===it.gcalTime || seen.has(it.gcalEventId) || gcalRecentlyMut(it.gcalEventId)) return;
+    seen.add(it.gcalEventId);
+    gcalSyncLinks(it.gcalEventId, {gcalTime:t});
+    changed = true;
+  });
   const gone = new Map();   // evId -> calId (candidates only — verified below)
   (day?.items||[]).forEach(it=>{
     if(it.gcalEventId && okCals.has(it.gcalCalId) && !present.has(it.gcalEventId) && !gcalRecentlyMut(it.gcalEventId))
       gone.set(it.gcalEventId, it.gcalCalId);
   });
-  if(!gone.size) return false;
-  let changed = false;
+  if(!gone.size){ if(changed) save(); return changed; }
   for(const [evId, calId] of gone){
     let deleted = false;
     try{
@@ -492,6 +511,15 @@ function removeItemCal(){
   gcalSyncLinks(e.evId, null);
   save(); closeSheet(); render();
 }
+/* Mobile keeps the page alive for days — when the app returns to the
+   foreground, mark day data stale so edits made in Google Calendar while we
+   were backgrounded show up. (Top-level statement: fine here, 03-ui.js has
+   already defined `tab` by the time this file loads.) */
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState !== "visible" || !GCAL.token) return;
+  gcalInvalidate();
+  if(tab === "today") render();   // kicks the silent refetch
+});
 function gcalDeleteEvent(calId, evId){
   if(!GCAL.token || !calId || !evId) return;
   cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(evId)}`,
