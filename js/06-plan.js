@@ -83,7 +83,9 @@ function savePlanEdit(){
   activePlan.detail = document.getElementById("pD").value.trim();
   if(activePlan.gcalEventId)   /* keep the linked Google Calendar event in step (preserve the category meta block) */
     gcalPatchEvent(activePlan.gcalCalId, activePlan.gcalEventId,
-      {summary:activePlan.title, description:gcalMetaWrite(activePlan.detail, catName(activePlan.type))});
+      {summary:activePlan.title, description:gcalMetaWrite(activePlan.detail,
+        {cat: catName(activePlan.type),
+         workout: activePlan.workoutId && woById(activePlan.workoutId) ? [woById(activePlan.workoutId).name] : null})});
   save(); closeSheet(); render();
 }
 function deletePlanItem(){
