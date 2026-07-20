@@ -1,0 +1,64 @@
+{
+  "app": "health-tracker",
+  "sevV2": true,
+  "woFolders": [
+    {"id": "exsupfld", "name": "Superset Circuits", "open": true}
+  ],
+  "workouts": [
+    {
+      "id": "exsup001",
+      "folderId": "exsupfld",
+      "name": "Full Body Supersets (~35 min)",
+      "exercises": [
+        {"n": "Jumping Jacks", "c": "cardio", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 10},
+        {"n": "Cat Cow", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 45, "rest": 10},
+        {"n": "Dead Bug", "c": "core", "mode": "reps", "sets": 2, "reps": 10, "secs": 30, "rest": 15},
+        {"n": "High Knees", "c": "cardio", "mode": "time", "sets": 1, "reps": 10, "secs": 40, "rest": 45},
+        {"n": "Biceps Curl", "c": "arms", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 10, "grp": "exsupa1"},
+        {"n": "Goblet Squat", "c": "squat", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 10, "grp": "exsupa1"},
+        {"n": "Triceps Extension", "c": "arms", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 10, "grp": "exsupa2"},
+        {"n": "Reverse Lunge", "c": "lunge", "mode": "reps", "sets": 3, "reps": 10, "secs": 30, "rest": 10, "grp": "exsupa2"},
+        {"n": "Plank", "c": "core", "mode": "time", "sets": 3, "reps": 10, "secs": 40, "rest": 10, "grp": "exsupa3"},
+        {"n": "Russian Twist", "c": "core", "mode": "reps", "sets": 3, "reps": 20, "secs": 30, "rest": 10, "grp": "exsupa3"},
+        {"n": "Foam Roll Quads", "c": "mobility", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Foam Roll Hamstrings", "c": "mobility", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Foam Roll Back", "c": "mobility", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Hamstring Stretch", "c": "mobility", "mode": "time", "sets": 1, "reps": 10, "secs": 45, "rest": 0},
+        {"n": "Hip Flexor Stretch", "c": "mobility", "mode": "time", "sets": 1, "reps": 10, "secs": 45, "rest": 0},
+        {"n": "Child's Pose", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0}
+      ]
+    },
+    {
+      "id": "exsup002",
+      "folderId": "exsupfld",
+      "name": "HIIT Cardio Blast (~20 min)",
+      "exercises": [
+        {"n": "Jumping Jacks", "c": "cardio", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 15},
+        {"n": "Cat Cow", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 30, "rest": 30},
+        {"n": "Burpee", "c": "cardio", "mode": "reps", "sets": 3, "reps": 10, "secs": 30, "rest": 10, "grp": "exsupb1"},
+        {"n": "Mountain Climber", "c": "core", "mode": "time", "sets": 3, "reps": 10, "secs": 30, "rest": 10, "grp": "exsupb1"},
+        {"n": "Jump Squat", "c": "squat", "mode": "reps", "sets": 3, "reps": 12, "secs": 30, "rest": 10, "grp": "exsupb1"},
+        {"n": "High Knees", "c": "cardio", "mode": "time", "sets": 3, "reps": 10, "secs": 30, "rest": 10, "grp": "exsupb2"},
+        {"n": "Plank", "c": "core", "mode": "time", "sets": 3, "reps": 10, "secs": 30, "rest": 10, "grp": "exsupb2"},
+        {"n": "Hamstring Stretch", "c": "mobility", "mode": "time", "sets": 1, "reps": 10, "secs": 45, "rest": 0},
+        {"n": "Child's Pose", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0}
+      ]
+    },
+    {
+      "id": "exsup003",
+      "folderId": "exsupfld",
+      "name": "Kettlebell Power (~25 min)",
+      "exercises": [
+        {"n": "Cat Cow", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 45, "rest": 10},
+        {"n": "Glute Bridge", "c": "hinge", "mode": "reps", "sets": 2, "reps": 12, "secs": 30, "rest": 20},
+        {"n": "Kettlebell Swing", "c": "hinge", "mode": "reps", "sets": 3, "reps": 15, "secs": 30, "rest": 10, "grp": "exsupc1"},
+        {"n": "Goblet Squat", "c": "squat", "mode": "reps", "sets": 3, "reps": 10, "secs": 30, "rest": 10, "grp": "exsupc1"},
+        {"n": "Single Arm Row", "c": "pull", "mode": "reps", "sets": 3, "reps": 10, "secs": 30, "rest": 10, "grp": "exsupc2"},
+        {"n": "Overhead Press", "c": "press", "mode": "reps", "sets": 3, "reps": 10, "secs": 30, "rest": 10, "grp": "exsupc2"},
+        {"n": "Russian Twist", "c": "core", "mode": "reps", "sets": 3, "reps": 20, "secs": 30, "rest": 30},
+        {"n": "Hip Flexor Stretch", "c": "mobility", "mode": "time", "sets": 2, "reps": 10, "secs": 30, "rest": 0},
+        {"n": "Child's Pose", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0}
+      ]
+    }
+  ]
+}

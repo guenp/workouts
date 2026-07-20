@@ -266,6 +266,8 @@ const EXAMPLE_FILES = [
   "examples/seven-minute-workouts.json",
   "examples/strength-routines.json",
   "examples/vinyasa-yoga.json",
+  "examples/superset-circuits.json",
+  "examples/pilates-and-recovery.json",
   "examples/weekly-plan.json"
 ];
 const EXAMPLES_FOLDER = {id:"exfolder", name:"Examples", open:true};

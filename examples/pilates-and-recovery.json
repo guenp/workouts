@@ -1,0 +1,42 @@
+{
+  "app": "health-tracker",
+  "sevV2": true,
+  "woFolders": [
+    {"id": "exrecfld", "name": "Pilates & Recovery", "open": true}
+  ],
+  "workouts": [
+    {
+      "id": "exrec001",
+      "folderId": "exrecfld",
+      "name": "Pilates Core (~15 min)",
+      "exercises": [
+        {"n": "Cat Cow", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 45, "rest": 10},
+        {"n": "Hundred", "c": "pilates", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 20},
+        {"n": "Roll Up", "c": "pilates", "mode": "reps", "sets": 2, "reps": 8, "secs": 30, "rest": 15},
+        {"n": "Single Leg Circle", "c": "pilates", "mode": "reps", "sets": 2, "reps": 8, "secs": 30, "rest": 15},
+        {"n": "Scissor Kick", "c": "pilates", "mode": "reps", "sets": 2, "reps": 10, "secs": 30, "rest": 15},
+        {"n": "Criss Cross", "c": "pilates", "mode": "reps", "sets": 2, "reps": 12, "secs": 30, "rest": 15},
+        {"n": "Swimming", "c": "pilates", "mode": "time", "sets": 2, "reps": 10, "secs": 30, "rest": 15},
+        {"n": "Child's Pose", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0}
+      ]
+    },
+    {
+      "id": "exrec002",
+      "folderId": "exrecfld",
+      "name": "Recovery & Mobility (~20 min)",
+      "exercises": [
+        {"n": "Cat Cow", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Downward Dog", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 45, "rest": 0},
+        {"n": "Pigeon Pose", "c": "yoga", "mode": "time", "sets": 2, "reps": 10, "secs": 45, "rest": 0},
+        {"n": "Butterfly", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Seated Forward Bend", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 45, "rest": 0},
+        {"n": "Foam Roll Quads", "c": "mobility", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Foam Roll Hamstrings", "c": "mobility", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Foam Roll Calves", "c": "mobility", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Foam Roll Back", "c": "mobility", "mode": "time", "sets": 1, "reps": 10, "secs": 60, "rest": 0},
+        {"n": "Hip Flexor Stretch", "c": "mobility", "mode": "time", "sets": 2, "reps": 10, "secs": 30, "rest": 0},
+        {"n": "Child's Pose", "c": "yoga", "mode": "time", "sets": 1, "reps": 10, "secs": 90, "rest": 0}
+      ]
+    }
+  ]
+}
