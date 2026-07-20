@@ -215,8 +215,12 @@ function gcalEvTime(e){
 }
 /* Returns null when the feature is off; otherwise {loading, byCat, other}
    where byCat/other hold {e,i} refs (i indexes GCAL.dayList — safe for inline
-   handlers). App-created events (woApp) and events already copied into the
-   day (matched by gcalEvId) are hidden to avoid duplicates. */
+   handlers). Dedupe: an event is hidden ONLY if an item shown on this day
+   actually links to it (gcalEventId from a push, gcalEvId from a copy, or a
+   recurring instance whose series an item links to). App-created events with
+   NO matching item still render — e.g. a plan item pushed after today was
+   already materialized, or an item that was later removed: hiding those made
+   events silently invisible in the app while visible in Google Calendar. */
 function gcalDayData(k){
   if(!GCAL.token || !gcalCals().length) return null;
   const evs = GCAL.ev[k];
@@ -224,11 +228,15 @@ function gcalDayData(k){
   if(!fresh && !GCAL.evLoading[k]){ GCAL.evLoading[k] = true; gcalFetchDay(k); }
   if(!evs) return {loading:true, byCat:{}, other:[]};   // stale data keeps rendering while the refetch runs
   GCAL.dayList = evs;
-  const copied = new Set((state.days[k]?.items||[]).map(it=>it.gcalEvId).filter(Boolean));
+  /* Ids linked from the items this day displays. Preview (future) days show
+     plan items, so derive from the plan there. */
+  const items = state.days[k]?.items || planItemsFor(new Date(k+"T12:00"));
+  const linked = new Set();
+  items.forEach(it=>{ if(it.gcalEventId) linked.add(it.gcalEventId); if(it.gcalEvId) linked.add(it.gcalEvId); });
   const byCat = {}, other = [];
   evs.forEach((e,i)=>{
+    if(linked.has(e.id) || (e.recurringEventId && linked.has(e.recurringEventId))) return;   // already shown as an item
     const p = e.extendedProperties?.private;
-    if(p?.woApp || copied.has(e.id)) return;
     const x = {e, i};
     if(p?.woCat && CATS().some(c=>c.id===p.woCat)) (byCat[p.woCat] = byCat[p.woCat]||[]).push(x);
     else other.push(x);
