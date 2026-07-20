@@ -300,10 +300,11 @@ async function gcalFetchDay(k){
   if(tab==="today" && viewKey()===k) render();
 }
 function gcalEvRow(x){
-  const e = x.e;
+  const e = x.e, w = gcalEvWorkout(e);
   return `<button class="item" onclick="openGcalEvent(${x.i})">
     <div class="dot gcal">▤</div>
     <div class="tx"><div class="t">${esc(e.summary||"(no title)")}</div>
+    ${w?`<div class="d">${esc(woSummary(w))}</div>`:""}
     <div class="d">${esc(gcalEvTime(e))} · ${esc(e.calName||"")}</div></div>
   </button>`;
 }
@@ -315,7 +316,8 @@ function openGcalEvent(i){
     <p class="sub">${esc(gcalEvTime(e))} · ${esc(e.calName||"")}${e.location?" · "+esc(e.location):""}</p>
     ${desc?`<p class="sub">${esc(desc)}</p>`:""}
     ${e.htmlLink?`<a class="sheet-btn" style="text-decoration:none" href="${esc(e.htmlLink)}" target="_blank" rel="noopener"><span>${ICON.open}</span> Open in Google Calendar</a>`:""}
-    <p class="sub" style="margin-top:12px">Log it in the app as:</p>
+    ${gcalEvWorkout(e)?`<button class="primary" style="margin-top:12px" onclick="gcalEvToDayWo(${i})">Log as workout: ${esc(gcalEvWorkout(e).name)}</button>`:""}
+    <p class="sub" style="margin-top:12px">${gcalEvWorkout(e)?"Or log it as a plain item:":"Log it in the app as:"}</p>
     <div class="chips">${CATS().map((c,ci)=>`<button onclick="gcalEvToDay(${i},${ci})">${esc(c.name)}</button>`).join("")}</div>
     <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
 }
@@ -329,24 +331,44 @@ function gcalEvToDay(i, ci){
   if(e.calId) gcalSetEventCat(e.calId, e.id, c);   // write the category back to the event (best effort)
   save(); closeSheet(); render();
 }
+/* Logs a recognized event as a full workout item — carries workoutId, so the
+   player, exercise details, and "Go to workout" all work. Writes the meta
+   block back to the event so recognition is durable and editable in Google
+   Calendar. */
+function gcalEvToDayWo(i){
+  const e = GCAL.dayList?.[i]; if(!e) return;
+  const w = gcalEvWorkout(e); if(!w) return;
+  materializeDay(viewDate || new Date());
+  const it = woAsItem(w, true);
+  const cid = gcalEvCat(e);
+  if(cid) it.type = cid;
+  it.gcalEvId = e.id; it.gcalEvCalId = e.calId || null;
+  state.days[viewKey()].items.push(it);
+  if(e.calId) gcalWriteEventMeta(e.calId, e.id, {cat: CATS().find(c=>c.id===it.type), workout: w});
+  save(); closeSheet(); render();
+}
 /* Write the category onto the event: description meta block (source of
    truth, user-editable in Google Calendar) + woCat extendedProperty.
    GET-then-PATCH so the user's own description text and other private
    extendedProperty keys are preserved. Fails silently on read-only
    calendars — the local item keeps its category regardless. */
-async function gcalSetEventCat(calId, evId, cat){
+function gcalSetEventCat(calId, evId, cat){ return gcalWriteEventMeta(calId, evId, {cat}); }
+async function gcalWriteEventMeta(calId, evId, {cat, workout}){
   if(!GCAL.token || !calId || !evId) return;
   const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(evId)}`;
   try{
     gcalMarkMut(evId);
     const r = await (await cfetch(url)).json();
     if(!r.id) return;
+    const keepWo = workout ? workout.name : gcalMetaWorkout(r.description);   // don't drop an existing Workout line
     await cfetch(url, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({
-      description: gcalMetaWrite(r.description, cat.name),
-      extendedProperties: {private: {...(r.extendedProperties?.private||{}), woCat:cat.id, woCatName:cat.name}}
+      description: gcalMetaWrite(r.description, {cat: cat?.name, workout: keepWo}),
+      extendedProperties: {private: {...(r.extendedProperties?.private||{}),
+        ...(cat ? {woCat:cat.id, woCatName:cat.name} : {}),
+        ...(workout ? {woWo:String(workout.id)} : {})}}
     })});
     gcalInvalidate();
-  }catch(e){ console.error("category write failed", e); }
+  }catch(e){ console.error("event meta write failed", e); }
 }
 /* Category sheet for a day/plan item (caller sets activeItem). Changing it
    also updates the linked event when there is one. */
@@ -402,12 +424,42 @@ function gcalMetaCat(desc){
   const m = txt.slice(i).match(/Category:\s*(.+)/i);
   return m ? m[1].trim() : null;
 }
-function gcalMetaWrite(desc, catNm){
+/* f: {cat:<category name>, workout:<workout name>|null} — or a plain string
+   meaning just the category (legacy callers). */
+function gcalMetaWrite(desc, f){
+  if(typeof f === "string") f = {cat:f};
   let base = String(desc||"");
   const i = base.indexOf(GCAL_META_HDR);
   if(i >= 0) base = base.slice(0, i);   // replace our previous block (best effort on HTML-wrapped text)
   base = base.replace(/(\s|<br\s*\/?>)+$/i, "");
-  return (base ? base + "\n\n" : "") + GCAL_META_HDR + "\nCategory: " + catNm;
+  let block = GCAL_META_HDR;
+  if(f.cat) block += "\nCategory: " + f.cat;
+  if(f.workout) block += "\nWorkout: " + f.workout;
+  return (base ? base + "\n\n" : "") + block;
+}
+function gcalMetaWorkout(desc){
+  const txt = gcalDescText(desc);
+  const i = txt.indexOf(GCAL_META_HDR);
+  if(i < 0) return null;
+  const m = txt.slice(i).match(/Workout:\s*(.+)/i);
+  return m ? m[1].trim() : null;
+}
+function woByName(n){
+  if(!n) return null;
+  n = n.trim().toLowerCase();
+  return state.workouts.find(w=>w.name.trim().toLowerCase()===n) || null;
+}
+/* Resolve an event to an app workout. Priority: description meta "Workout:"
+   (name, source of truth, user-editable in Google Calendar) > woWo
+   extendedProperty (app-local workout id) > the event TITLE matching a
+   workout name — the fallback that makes hand-made calendar events work
+   with zero setup. */
+function gcalEvWorkout(e){
+  const byMeta = woByName(gcalMetaWorkout(e.description));
+  if(byMeta) return byMeta;
+  const p = e.extendedProperties?.private;
+  if(p?.woWo){ const w = woById(p.woWo); if(w) return w; }
+  return woByName(e.summary);
 }
 function catIdByName(n){
   if(!n) return null;
@@ -430,11 +482,14 @@ async function gcalCreateEvent(it, sd, ed, recurrence){
   const cal = gcalTargetCal();
   const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
   try{
+    const wo = it.workoutId ? woById(it.workoutId) : null;
     const body = {
-      summary: it.title, description: gcalMetaWrite(it.detail || "", catName(it.type)),
+      summary: it.title,
+      description: gcalMetaWrite(it.detail || "", {cat:catName(it.type), workout:wo?.name}),
       start: {dateTime: gcalFmtLocal(sd), timeZone: TZ},
       end:   {dateTime: gcalFmtLocal(ed), timeZone: TZ},
-      extendedProperties: {private: {woApp:"1", woCat:String(it.type), woCatName:catName(it.type)}}
+      extendedProperties: {private: {woApp:"1", woCat:String(it.type), woCatName:catName(it.type),
+        ...(wo ? {woWo:String(wo.id)} : {})}}
     };
     if(recurrence) body.recurrence = recurrence;
     const r = await (await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`,
