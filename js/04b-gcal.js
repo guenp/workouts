@@ -209,6 +209,11 @@ async function createGcalCal(){
 }
 
 /* ---- events on the Today tab ---- */
+function gcalEvStartHM(e){
+  if(!e.start?.dateTime) return null;
+  const d = new Date(e.start.dateTime), p = n=>String(n).padStart(2,"0");
+  return p(d.getHours())+":"+p(d.getMinutes());
+}
 function gcalEvTime(e){
   if(e.start?.date) return "All day";
   const f = d => { d=new Date(d); const p=n=>String(n).padStart(2,"0"); return p(d.getHours())+":"+p(d.getMinutes()); };
@@ -327,7 +332,8 @@ function gcalEvToDay(i, ci){
   const e = GCAL.dayList?.[i], c = CATS()[ci]; if(!e || !c) return;
   materializeDay(viewDate || new Date());
   state.days[viewKey()].items.push({id:uid(), type:c.id, title:e.summary||"Calendar event",
-    detail:gcalEvTime(e), status:"planned", actual:"", gcalEvId:e.id, gcalEvCalId:e.calId||null});
+    detail:"", status:"planned", actual:"", gcalEvId:e.id, gcalEvCalId:e.calId||null,
+    gcalTime:gcalEvStartHM(e), gcalCalName:e.calName||null});   // shown via the ▤ cue
   if(e.calId) gcalSetEventCat(e.calId, e.id, c);   // write the category back to the event (best effort)
   save(); closeSheet(); render();
 }
@@ -343,6 +349,7 @@ function gcalEvToDayWo(i){
   const cid = gcalEvCat(e);
   if(cid) it.type = cid;
   it.gcalEvId = e.id; it.gcalEvCalId = e.calId || null;
+  it.gcalTime = gcalEvStartHM(e); it.gcalCalName = e.calName || null;   // keep the calendar time visible (▤ cue)
   state.days[viewKey()].items.push(it);
   if(e.calId) gcalWriteEventMeta(e.calId, e.id, {cat: CATS().find(c=>c.id===it.type), workout: w});
   save(); closeSheet(); render();
@@ -604,8 +611,9 @@ async function gcalReconcileDay(k){
     }
     /* items logged FROM an external event (gcalEvId): local copy only */
     if(it.gcalEvId && !gcalRecentlyMut(it.gcalEvId)){
-      const cid = remoteCat.get(it.gcalEvId);
+      const cid = remoteCat.get(it.gcalEvId), t2 = remoteTime.get(it.gcalEvId);
       if(cid && cid!==it.type){ it.type = cid; changed = true; }
+      if(t2 && t2!==it.gcalTime){ it.gcalTime = t2; changed = true; }
     }
   });
   const gone = new Map();   // evId -> calId (candidates only — verified below)

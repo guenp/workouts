@@ -87,7 +87,7 @@ function itemHTML(it){
   const sub = it.status==="swapped" && it.actual
     ? `<div class="d swap">Instead: ${esc(it.actual)}</div>`
     : (it.detail ? `<div class="d">${esc(it.detail)}</div>` : "");
-  const cal = it.gcalEventId
+  const cal = (it.gcalEventId || it.gcalEvId)
     ? `<div class="d evcue">▤ ${esc(it.gcalTime||"")}${it.gcalTime?" · ":""}${esc(it.gcalCalName||"calendar")}</div>` : "";
   return `<button class="item status-${it.status}" onclick="openItem('${it.id}')">
     <div class="dot ${it.status}">${mark}</div>
