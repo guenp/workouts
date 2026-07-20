@@ -305,26 +305,121 @@ async function gcalFetchDay(k){
   if(tab==="today" && viewKey()===k) render();
 }
 function gcalEvRow(x){
-  const e = x.e, w = gcalEvWorkout(e);
+  const e = x.e, ws = gcalEvWorkouts(e);
   return `<button class="item" onclick="openGcalEvent(${x.i})">
     <div class="dot gcal">▤</div>
     <div class="tx"><div class="t">${esc(e.summary||"(no title)")}</div>
-    ${w?`<div class="d">${esc(woSummary(w))}</div>`:""}
+    ${ws.map(w=>`<div class="d">${esc(woSummary(w))}</div>`).join("")}
     <div class="d">${esc(gcalEvTime(e))} · ${esc(e.calName||"")}</div></div>
   </button>`;
 }
 function openGcalEvent(i){
   const e = GCAL.dayList?.[i]; if(!e) return;
   const desc = gcalMetaStrip(e.description).slice(0,300);
+  const ws = gcalEvWorkouts(e);
   openSheet(`
     <h3>${esc(e.summary||"(no title)")}</h3>
     <p class="sub">${esc(gcalEvTime(e))} · ${esc(e.calName||"")}${e.location?" · "+esc(e.location):""}</p>
     ${desc?`<p class="sub">${esc(desc)}</p>`:""}
     ${e.htmlLink?`<a class="sheet-btn" style="text-decoration:none" href="${esc(e.htmlLink)}" target="_blank" rel="noopener"><span>${ICON.open}</span> Open in Google Calendar</a>`:""}
-    ${gcalEvWorkout(e)?`<button class="primary" style="margin-top:12px" onclick="gcalEvToDayWo(${i})">Log as workout: ${esc(gcalEvWorkout(e).name)}</button>`:""}
-    <p class="sub" style="margin-top:12px">${gcalEvWorkout(e)?"Or log it as a plain item:":"Log it in the app as:"}</p>
+    ${ws.length?`<button class="primary" style="margin-top:12px" onclick="gcalEvToDayWo(${i})">Log workout${ws.length>1?"s":""}: ${esc(ws.map(w=>w.name).join(", "))}</button>`:""}
+    ${state.workouts.length?`<button class="sheet-btn" style="margin-top:${ws.length?8:12}px" onclick="openEvWoLink(${i})"><span>${ICON.chain}</span> Link workouts…${ws.length?` <small style="margin-left:auto;color:var(--sage)">${ws.length}</small>`:""}</button>`:""}
+    ${e.calId?`<button class="sheet-btn" onclick="openEvEdit(${i})"><span>${ICON.pencil}</span> Edit time${e.recurringEventId?"":" / calendar"}…</button>
+    <button class="sheet-btn danger" onclick="confirmEvDelete(${i})"><span>${ICON.trash}</span> Delete from calendar…</button>`:""}
+    <p class="sub" style="margin-top:12px">${ws.length?"Or log it as a plain item:":"Log it in the app as:"}</p>
     <div class="chips">${CATS().map((c,ci)=>`<button onclick="gcalEvToDay(${i},${ci})">${esc(c.name)}</button>`).join("")}</div>
     <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
+}
+/* ---- link an event to one or more workouts (meta is the source of truth,
+   written to the SERIES for recurring events so every occurrence inherits) */
+function openEvWoLink(i){
+  const e = GCAL.dayList?.[i]; if(!e) return;
+  if(!GCAL.woLinkDraft) GCAL.woLinkDraft = new Set(gcalEvWorkouts(e).map(w=>w.id));
+  openSheet(`
+    <h3>Link workouts</h3>
+    <p class="sub">${esc(e.summary||"(no title)")} — linked workouts show their exercises here and are logged together. Stored on the event description ("Workout: …", semicolon-separated), so you can edit it in Google Calendar too.${e.recurringEventId?" Applies to the whole recurring series.":""}</p>
+    ${state.workouts.map((w,wi)=>`<label class="checkrow"><input type="checkbox" ${GCAL.woLinkDraft.has(w.id)?"checked":""} onchange="toggleEvWoLink(${i},${wi})"><span>${esc(w.name)}</span></label>`).join("")}
+    <button class="primary" onclick="saveEvWoLink(${i})">Save</button>
+    <button class="sheet-btn" style="margin-top:8px" onclick="GCAL.woLinkDraft=null;openGcalEvent(${i})"><span>${ICON.back}</span> Back</button>`);
+}
+function toggleEvWoLink(i, wi){
+  const w = state.workouts[wi]; if(!w) return;
+  if(GCAL.woLinkDraft.has(w.id)) GCAL.woLinkDraft.delete(w.id); else GCAL.woLinkDraft.add(w.id);
+}
+function saveEvWoLink(i){
+  const e = GCAL.dayList?.[i]; if(!e) return;
+  const wos = state.workouts.filter(w=>GCAL.woLinkDraft.has(w.id));
+  GCAL.woLinkDraft = null;
+  /* optimistic local update so recognition reflects immediately */
+  e.description = gcalMetaWrite(e.description, {cat: gcalMetaCat(e.description), workout: wos.length?wos.map(w=>w.name):null});
+  if(e.calId) gcalWriteEventMeta(e.calId, e.recurringEventId || e.id, {workout: wos});
+  openGcalEvent(i); render();
+}
+/* ---- edit a raw event's time (and calendar for non-recurring) ---- */
+function openEvEdit(i){
+  const e = GCAL.dayList?.[i]; if(!e || !e.calId) return;
+  const time = gcalEvStartHM(e) || gcalDefTime();
+  const dur = e.start?.dateTime && e.end?.dateTime ? Math.max(5, Math.round((new Date(e.end.dateTime)-new Date(e.start.dateTime))/60000)) : 45;
+  const wr = gcalWritable();
+  openSheet(`
+    <h3>Edit event</h3>
+    <p class="sub">${esc(e.summary||"(no title)")}${e.recurringEventId?" · changes this occurrence only":""}</p>
+    <div class="numrow">
+      <div><label class="fl">Time</label><input class="field" type="time" id="revTimeIn" value="${time}"></div>
+      <div><label class="fl">Duration (min)</label><input class="field" type="number" min="5" id="revDurIn" value="${dur}"></div>
+    </div>
+    ${!e.recurringEventId && wr.length>1?`<label class="fl">Calendar</label>
+      <select class="field" id="revCalSel">${wr.map((c,ci)=>`<option value="${ci}" ${c.id===e.calId?"selected":""}>${esc(c.summary)}</option>`).join("")}</select>`:""}
+    <button class="primary" onclick="saveEvEdit(${i})">Save</button>
+    <button class="sheet-btn" style="margin-top:8px" onclick="openGcalEvent(${i})"><span>${ICON.back}</span> Back</button>`);
+}
+async function saveEvEdit(i){
+  const e = GCAL.dayList?.[i]; if(!e || !e.calId) return;
+  const time = document.getElementById("revTimeIn")?.value || gcalEvStartHM(e) || gcalDefTime();
+  const dur = Math.max(5, parseInt(document.getElementById("revDurIn")?.value)||45);
+  const selEl = document.getElementById("revCalSel");
+  closeSheet();
+  const dateK = e.start?.dateTime ? todayKey(new Date(e.start.dateTime)) : (e.start?.date || todayKey());
+  try{
+    let calId = e.calId;
+    if(selEl){
+      const dest = gcalWritable()[+selEl.value];
+      if(dest && dest.id !== calId){
+        gcalMarkMut(e.id);
+        await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(e.id)}/move?destination=${encodeURIComponent(dest.id)}`, {method:"POST"});
+        calId = dest.id;
+      }
+    }
+    const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const sd = new Date(dateK+"T"+time), ed = new Date(sd.getTime()+dur*60000);
+    gcalMarkMut(e.id); if(e.recurringEventId) gcalMarkMut(e.recurringEventId);
+    await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(e.id)}`,
+      {method:"PATCH", headers:{"Content-Type":"application/json"},
+       body:JSON.stringify({start:{dateTime:gcalFmtLocal(sd), timeZone:TZ}, end:{dateTime:gcalFmtLocal(ed), timeZone:TZ}})});
+    gcalInvalidate();
+  }catch(err){ console.error(err); }
+  render();
+}
+/* ---- delete a raw event, with confirmation ---- */
+function confirmEvDelete(i){
+  const e = GCAL.dayList?.[i]; if(!e || !e.calId) return;
+  openSheet(`
+    <h3>Delete from calendar?</h3>
+    <p class="sub">This deletes "${esc(e.summary||"(no title)")}"${e.recurringEventId?" — this occurrence only —":""} from ${esc(e.calName||"your calendar")} in Google Calendar. This can't be undone from the app.</p>
+    <button class="sheet-btn danger" onclick="doEvDelete(${i})"><span>${ICON.trash}</span> Yes, delete the event</button>
+    <button class="primary" style="margin-top:8px" onclick="openGcalEvent(${i})">Keep it</button>`);
+}
+function doEvDelete(i){
+  const e = GCAL.dayList?.[i]; if(!e || !e.calId) return;
+  gcalDeleteEvent(e.calId, e.id);
+  /* optimistic: drop the row and clean up any items logged from it today */
+  Object.keys(GCAL.ev).forEach(k=>{ GCAL.ev[k] = GCAL.ev[k].filter(x=>x.id!==e.id); });
+  const day = state.days[viewKey()];
+  if(day){
+    day.items = day.items.filter(it => !(it.gcalEvId===e.id && it.status==="planned"));
+    day.items.forEach(it => { if(it.gcalEvId===e.id){ delete it.gcalEvId; delete it.gcalEvCalId; } });
+  }
+  save(); closeSheet(); render();
 }
 /* Copies the event into the viewed day as a normal loggable item (planned).
    The calendar row disappears (matched by gcalEvId) — the item replaces it. */
@@ -343,15 +438,19 @@ function gcalEvToDay(i, ci){
    Calendar. */
 function gcalEvToDayWo(i){
   const e = GCAL.dayList?.[i]; if(!e) return;
-  const w = gcalEvWorkout(e); if(!w) return;
+  const ws = gcalEvWorkouts(e); if(!ws.length) return;
   materializeDay(viewDate || new Date());
-  const it = woAsItem(w, true);
   const cid = gcalEvCat(e);
-  if(cid) it.type = cid;
-  it.gcalEvId = e.id; it.gcalEvCalId = e.calId || null;
-  it.gcalTime = gcalEvStartHM(e); it.gcalCalName = e.calName || null;   // keep the calendar time visible (▤ cue)
-  state.days[viewKey()].items.push(it);
-  if(e.calId) gcalWriteEventMeta(e.calId, e.id, {cat: CATS().find(c=>c.id===it.type), workout: w});
+  let first = null;
+  for(const w of ws){
+    const it = woAsItem(w, true);
+    if(cid) it.type = cid;
+    it.gcalEvId = e.id; it.gcalEvCalId = e.calId || null;
+    it.gcalTime = gcalEvStartHM(e); it.gcalCalName = e.calName || null;   // keep the calendar time visible (▤ cue)
+    state.days[viewKey()].items.push(it);
+    first = first || it;
+  }
+  if(e.calId) gcalWriteEventMeta(e.calId, e.id, {cat: first && CATS().find(c=>c.id===first.type), workout: ws});
   save(); closeSheet(); render();
 }
 /* Write the category onto the event: description meta block (source of
@@ -367,12 +466,15 @@ async function gcalWriteEventMeta(calId, evId, {cat, workout}){
     gcalMarkMut(evId);
     const r = await (await cfetch(url)).json();
     if(!r.id) return;
-    const keepWo = workout ? workout.name : gcalMetaWorkout(r.description);   // don't drop an existing Workout line
+    /* keep whatever half of the block isn't being changed */
+    const wos = workout ? (Array.isArray(workout)?workout:[workout]) : null;
+    const keepWo = wos ? wos.map(w=>w.name) : gcalMetaWorkouts(r.description);
+    const keepCat = cat ? cat.name : gcalMetaCat(r.description);
     await cfetch(url, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({
-      description: gcalMetaWrite(r.description, {cat: cat?.name, workout: keepWo}),
+      description: gcalMetaWrite(r.description, {cat: keepCat, workout: keepWo.length?keepWo:null}),
       extendedProperties: {private: {...(r.extendedProperties?.private||{}),
         ...(cat ? {woCat:cat.id, woCatName:cat.name} : {}),
-        ...(workout ? {woWo:String(workout.id)} : {})}}
+        ...(wos && wos.length ? {woWo:String(wos[0].id)} : {})}}
     })});
     gcalInvalidate();
   }catch(e){ console.error("event meta write failed", e); }
@@ -441,7 +543,7 @@ function gcalMetaWrite(desc, f){
   base = base.replace(/(\s|<br\s*\/?>)+$/i, "");
   let block = GCAL_META_HDR;
   if(f.cat) block += "\nCategory: " + f.cat;
-  if(f.workout) block += "\nWorkout: " + f.workout;
+  if(f.workout) block += "\nWorkout: " + (Array.isArray(f.workout) ? f.workout.join("; ") : f.workout);
   return (base ? base + "\n\n" : "") + block;
 }
 function gcalMetaWorkout(desc){
@@ -450,6 +552,12 @@ function gcalMetaWorkout(desc){
   if(i < 0) return null;
   const m = txt.slice(i).match(/Workout:\s*(.+)/i);
   return m ? m[1].trim() : null;
+}
+/* Multiple workouts are semicolon-separated on the Workout line
+   ("Workout: A; B") — semicolons because workout names may contain commas. */
+function gcalMetaWorkouts(desc){
+  const raw = gcalMetaWorkout(desc);
+  return raw ? raw.split(";").map(x=>x.trim()).filter(Boolean) : [];
 }
 function woByName(n){
   if(!n) return null;
@@ -461,13 +569,15 @@ function woByName(n){
    extendedProperty (app-local workout id) > the event TITLE matching a
    workout name — the fallback that makes hand-made calendar events work
    with zero setup. */
-function gcalEvWorkout(e){
-  const byMeta = woByName(gcalMetaWorkout(e.description));
-  if(byMeta) return byMeta;
+function gcalEvWorkouts(e){
+  const metas = gcalMetaWorkouts(e.description).map(woByName).filter(Boolean);
+  if(metas.length) return metas;
   const p = e.extendedProperties?.private;
-  if(p?.woWo){ const w = woById(p.woWo); if(w) return w; }
-  return woByName(e.summary);
+  if(p?.woWo){ const w = woById(p.woWo); if(w) return [w]; }
+  const t = woByName(e.summary);
+  return t ? [t] : [];
 }
+function gcalEvWorkout(e){ return gcalEvWorkouts(e)[0] || null; }
 function catIdByName(n){
   if(!n) return null;
   n = n.trim().toLowerCase();
@@ -547,9 +657,10 @@ async function gcalPushDayItems(items, o){
    copies share the same event id. patch=null removes the link. */
 function gcalSyncLinks(evId, patch){
   const apply = it => {
-    if(it.gcalEventId !== evId) return;
-    if(patch) Object.assign(it, patch);
-    else { delete it.gcalEventId; delete it.gcalCalId; delete it.gcalCalName; delete it.gcalTime; }
+    const viaPush = it.gcalEventId === evId, viaCopy = it.gcalEvId === evId;
+    if(!viaPush && !viaCopy) return;
+    if(patch){ Object.assign(it, patch); if(viaCopy && patch.gcalCalId) it.gcalEvCalId = patch.gcalCalId; }
+    else { delete it.gcalEventId; delete it.gcalCalId; delete it.gcalCalName; delete it.gcalTime; delete it.gcalEvId; delete it.gcalEvCalId; }
   };
   for(let d=0; d<7; d++) (state.template[d]||[]).forEach(apply);
   Object.values(state.weekPlans||{}).forEach(wk => { for(let d=0; d<7; d++) (wk[d]||[]).forEach(apply); });
@@ -650,7 +761,10 @@ async function gcalReconcileDay(k){
 /* ---- edit sheet for a linked event (opened from an item's action sheet;
    the caller sets activeItem first — plan items reuse it too) ---- */
 async function openItemCal(){
-  const it = activeItem; if(!it?.gcalEventId) return;
+  const it = activeItem;
+  const itEvId = it && (it.gcalEventId || it.gcalEvId);
+  const itCalId = it && (it.gcalCalId || it.gcalEvCalId);
+  if(!itEvId || !itCalId) return;
   openSheet(`<h3>Calendar event</h3><p class="sub">Loading…</p>`);
   if(!GCAL.token){
     return openSheet(`<h3>Calendar event</h3><p class="sub">Google Calendar is disconnected — reconnect in Settings → Google Calendar.</p>
@@ -658,10 +772,10 @@ async function openItemCal(){
   }
   if(!GCAL.list) await gcalLoadList();
   let ev = null;
-  try{ ev = await (await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(it.gcalCalId)}/events/${encodeURIComponent(it.gcalEventId)}`)).json(); }catch(e){}
+  try{ ev = await (await cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(itCalId)}/events/${encodeURIComponent(itEvId)}`)).json(); }catch(e){}
   if(!ev?.id || ev.status==="cancelled"){
     return openSheet(`<h3>Calendar event</h3><p class="sub">Couldn't load the event — it may have been deleted in Google Calendar.</p>
-      <button class="sheet-btn danger" onclick="gcalSyncLinks(activeItem.gcalEventId, null);save();closeSheet();render()"><span>${ICON.trash}</span> Forget the link</button>
+      <button class="sheet-btn danger" onclick="gcalSyncLinks(activeItem.gcalEventId||activeItem.gcalEvId, null);save();closeSheet();render()"><span>${ICON.trash}</span> Forget the link</button>
       <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
   }
   const sd = ev.start?.dateTime ? new Date(ev.start.dateTime) : null;
@@ -670,7 +784,7 @@ async function openItemCal(){
   const time = sd ? p(sd.getHours())+":"+p(sd.getMinutes()) : gcalDefTime();
   const dur = sd && edt ? Math.max(5, Math.round((edt-sd)/60000)) : 45;
   const recurring = !!(ev.recurrence && ev.recurrence.length);
-  GCAL.editEv = {calId: it.gcalCalId, evId: it.gcalEventId, dateK: sd ? todayKey(sd) : (ev.start?.date || todayKey())};
+  GCAL.editEv = {calId: itCalId, evId: itEvId, dateK: sd ? todayKey(sd) : (ev.start?.date || todayKey())};
   const wr = gcalWritable();
   openSheet(`
     <h3>Calendar event</h3>
@@ -680,7 +794,7 @@ async function openItemCal(){
       <div><label class="fl">Duration (min)</label><input class="field" type="number" min="5" id="evDurIn" value="${dur}"></div>
     </div>
     ${wr.length>1?`<label class="fl">Calendar</label>
-      <select class="field" id="evCalSel">${wr.map((c,i)=>`<option value="${i}" ${c.id===it.gcalCalId?"selected":""}>${esc(c.summary)}</option>`).join("")}</select>`:""}
+      <select class="field" id="evCalSel">${wr.map((c,i)=>`<option value="${i}" ${c.id===itCalId?"selected":""}>${esc(c.summary)}</option>`).join("")}</select>`:""}
     <button class="primary" onclick="saveItemCal()">Save</button>
     <button class="sheet-btn danger" style="margin-top:8px" onclick="removeItemCal()"><span>${ICON.trash}</span> Remove from calendar</button>
     <button class="sheet-btn" onclick="closeSheet()"><span>${ICON.back}</span> Close</button>`);
@@ -713,6 +827,14 @@ async function saveItemCal(){
   render();
 }
 function removeItemCal(){
+  const e = GCAL.editEv; if(!e) return;
+  openSheet(`
+    <h3>Remove from calendar?</h3>
+    <p class="sub">This deletes the event from Google Calendar${gcalEventInPlans(e.evId)?" — for a weekly plan item that means the whole recurring series":""}. The item stays in the app. This can't be undone from the app.</p>
+    <button class="sheet-btn danger" onclick="doRemoveItemCal()"><span>${ICON.trash}</span> Yes, delete the event</button>
+    <button class="primary" style="margin-top:8px" onclick="closeSheet()">Keep it</button>`);
+}
+function doRemoveItemCal(){
   const e = GCAL.editEv; if(!e) return;
   gcalDeleteEvent(e.calId, e.evId);
   gcalSyncLinks(e.evId, null);
