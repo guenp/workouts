@@ -27,13 +27,20 @@ const GCAL = {
   list: null,        // calendarList cache: [{id,summary,primary,accessRole}]
   ev: {},            // dateKey -> merged, sorted events for that day
   evLoading: {},     // dateKey -> true while a fetch is in flight
+  evGen: {},         // dateKey -> generation the data was fetched under
+  gen: 0,            // bumped by gcalInvalidate(); stale days refetch silently
   dayList: null      // events array backing the currently rendered Today tab
 };
+/* Stale-while-revalidate: after a mutation (event created/deleted/moved) the
+   cached day data is marked stale, NOT wiped — the Today tab keeps rendering
+   the old data while a background refetch runs, then re-renders. Wiping the
+   cache made a "Calendar" loading section flash in and out on every push. */
+function gcalInvalidate(){ GCAL.gen++; }
 const GCAL_BYDAY = ["SU","MO","TU","WE","TH","FR","SA"];
 
 /* ---- per-device prefs (localStorage, like Drive's) ---- */
 function gcalCals(){ try{ return JSON.parse(localStorage.getItem("gcalCals")) || []; }catch(e){ return []; } }        // [{id,summary}]
-function setGcalCals(v){ try{ localStorage.setItem("gcalCals", JSON.stringify(v)); }catch(e){} GCAL.ev = {}; }
+function setGcalCals(v){ try{ localStorage.setItem("gcalCals", JSON.stringify(v)); }catch(e){} GCAL.ev = {}; GCAL.evGen = {}; gcalInvalidate(); }
 function gcalPushPref(){ try{ return localStorage.getItem("gcalPush")==="1"; }catch(e){ return false; } }
 function gcalDefTime(){ try{ return localStorage.getItem("gcalDefTime") || "09:00"; }catch(e){ return "09:00"; } }
 function setGcalDefTime(v){ if(/^\d\d:\d\d$/.test(v)) try{ localStorage.setItem("gcalDefTime", v); }catch(e){} }
@@ -102,7 +109,7 @@ async function cfetch(url, opts={}){
 function gcalDisconnect(){
   const tok = GCAL.token;
   gcalDropToken();
-  GCAL.list = null; GCAL.ev = {}; GCAL.dayList = null;
+  GCAL.list = null; GCAL.ev = {}; GCAL.evGen = {}; GCAL.dayList = null;
   if(tok && window.google?.accounts) try{ google.accounts.oauth2.revoke(tok, ()=>{}); }catch(e){}
   openGcalMenu(); render();
 }
@@ -203,10 +210,9 @@ function gcalEvTime(e){
 function gcalDayData(k){
   if(!GCAL.token || !gcalCals().length) return null;
   const evs = GCAL.ev[k];
-  if(!evs){
-    if(!GCAL.evLoading[k]){ GCAL.evLoading[k] = true; gcalFetchDay(k); }
-    return {loading:true, byCat:{}, other:[]};
-  }
+  const fresh = evs && GCAL.evGen[k] === GCAL.gen;
+  if(!fresh && !GCAL.evLoading[k]){ GCAL.evLoading[k] = true; gcalFetchDay(k); }
+  if(!evs) return {loading:true, byCat:{}, other:[]};   // stale data keeps rendering while the refetch runs
   GCAL.dayList = evs;
   const copied = new Set((state.days[k]?.items||[]).map(it=>it.gcalEvId).filter(Boolean));
   const byCat = {}, other = [];
@@ -220,6 +226,7 @@ function gcalDayData(k){
   return {loading:false, byCat, other};
 }
 async function gcalFetchDay(k){
+  const gen = GCAL.gen;   // if invalidated mid-fetch, the result is already stale and will refetch
   try{
     const start = new Date(k+"T00:00"), end = new Date(k+"T00:00");
     end.setDate(end.getDate()+1);
@@ -233,9 +240,9 @@ async function gcalFetchDay(k){
       }catch(e){ console.error(e); }
     }
     all.sort((a,b)=>(a.start?.dateTime||a.start?.date||"").localeCompare(b.start?.dateTime||b.start?.date||""));
-    GCAL.ev[k] = all;
+    GCAL.ev[k] = all; GCAL.evGen[k] = gen;
     try{ await gcalReconcileDay(k); }catch(e){ console.error(e); }   // mirror deletions made in Google Calendar
-  }catch(e){ GCAL.ev[k] = []; }
+  }catch(e){ GCAL.ev[k] = GCAL.ev[k] || []; GCAL.evGen[k] = gen; }
   delete GCAL.evLoading[k];
   if(tab==="today" && viewKey()===k) render();
 }
@@ -311,7 +318,7 @@ async function gcalPushPlanItems(items, o){
     const r = await gcalCreateEvent(it, sd, ed, o.weekMonday ? null : ["RRULE:FREQ=WEEKLY;BYDAY="+GCAL_BYDAY[o.dow]]);
     if(r){ gcalLinkItem(it, r.id, cal, time); linked = true; }
   }
-  GCAL.ev = {};             // day caches are stale now
+  gcalInvalidate();         // day caches are stale now (refetched silently)
   if(linked) save();        // persist the event links (authoring change)
 }
 /* Day items (e.g. a workout added to today / a picked date) → one-off events.
@@ -328,7 +335,7 @@ async function gcalPushDayItems(items, o){
     const r = await gcalCreateEvent(it, sd, ed, null);
     if(r){ gcalLinkItem(it, r.id, cal, time); linked = true; }
   }
-  GCAL.ev = {};
+  gcalInvalidate();
   if(linked){ save(); render(); }   // re-render so the "on calendar" cue appears
 }
 /* Update/remove the link fields on every item (template, week overrides,
@@ -460,7 +467,7 @@ async function saveItemCal(){
       {method:"PATCH", headers:{"Content-Type":"application/json"},
        body:JSON.stringify({start:{dateTime:gcalFmtLocal(sd), timeZone:TZ}, end:{dateTime:gcalFmtLocal(ed), timeZone:TZ}})});
     gcalSyncLinks(e.evId, {gcalCalId:calId, gcalTime:time, ...(calName?{gcalCalName:calName}:{})});
-    GCAL.ev = {};
+    gcalInvalidate();
     save();
   }catch(err){ console.error(err); }
   render();
@@ -474,11 +481,11 @@ function removeItemCal(){
 function gcalDeleteEvent(calId, evId){
   if(!GCAL.token || !calId || !evId) return;
   cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(evId)}`,
-    {method:"DELETE"}).then(()=>{ GCAL.ev = {}; }).catch(e=>console.error(e));
+    {method:"DELETE"}).then(()=>{ gcalInvalidate(); }).catch(e=>console.error(e));
 }
 function gcalPatchEvent(calId, evId, patch){
   if(!GCAL.token || !calId || !evId) return;
   cfetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(evId)}`,
     {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(patch)})
-    .then(()=>{ GCAL.ev = {}; }).catch(e=>console.error(e));
+    .then(()=>{ gcalInvalidate(); }).catch(e=>console.error(e));
 }

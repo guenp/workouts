@@ -76,10 +76,10 @@ function todayHTML(){
       <div class="sec-h"><h2>Other</h2></div>
       <div class="card">${other.map(itemHTML).join("")}</div>
     </div>`:""}
-  ${gc && (gc.loading || gc.other.length)?`
+  ${gc && gc.other.length?`
     <div class="sec">
       <div class="sec-h"><h2>Calendar</h2></div>
-      <div class="card">${gc.loading?`<div class="empty">Loading calendar events…</div>`:gc.other.map(gcalEvRow).join("")}</div>
+      <div class="card">${gc.other.map(gcalEvRow).join("")}</div>
     </div>`:""}`;
 }
 function itemHTML(it){
