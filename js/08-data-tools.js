@@ -64,6 +64,7 @@ function openDataMenu(){
     ` : `<p class="sub">Hidden app data is invisible in Drive and private to this app. Choose "Drive folder" to sync to a visible health-tracker.json instead${getMode()==="drive"?" (you'll be asked to reconnect)":""}.</p>`}
     <button class="sheet-btn" onclick="loadExamples()"><span>${ICON.spark}</span> Load examples</button>
     <button class="sheet-btn danger" onclick="confirmClear()"><span>${ICON.trash}</span> Clear all data</button>
+    <p class="sub" style="margin-top:10px">App version: ${typeof APP_VER==="string" && APP_VER.indexOf("__")<0 ? esc(APP_VER) : "dev"}</p>
     <div id="verFoot">${verFooterHTML()}</div>
   `);
 }

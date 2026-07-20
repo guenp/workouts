@@ -34,6 +34,8 @@ jobs:
           printf '{"commit":"%s","builtAt":"%s"}\n' \
             "$(git rev-parse --short HEAD)" \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > version.json
+          # cache-bust assets + expose the version to the app (Settings footer)
+          sed -i "s/__APPVER__/$(git rev-parse --short HEAD)/g" index.html
       - uses: actions/configure-pages@v5
         with:
           enablement: true

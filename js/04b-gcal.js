@@ -585,15 +585,19 @@ async function gcalReconcileDay(k){
   if(!evs || !GCAL.token) return false;
   const okCals = GCAL.evOk[k];
   if(!okCals || !okCals.size) return false;
-  const present = new Set(), remoteTime = new Map(), remoteCat = new Map();   // evId -> "HH:MM" / category id
+  const present = new Set(), remoteTime = new Map(), remoteCat = new Map(), remoteCal = new Map();
   evs.forEach(e=>{
     present.add(e.id);
-    let t = null;
-    if(e.start?.dateTime){ const d=new Date(e.start.dateTime), p=n=>String(n).padStart(2,"0"); t = p(d.getHours())+":"+p(d.getMinutes()); }
-    const cid = gcalEvCat(e);
+    const t = gcalEvStartHM(e), cid = gcalEvCat(e);
     if(t) remoteTime.set(e.id, t);
     if(cid) remoteCat.set(e.id, cid);
-    if(e.recurringEventId){ present.add(e.recurringEventId); if(t) remoteTime.set(e.recurringEventId, t); if(cid) remoteCat.set(e.recurringEventId, cid); }
+    if(e.calName) remoteCal.set(e.id, e.calName);
+    if(e.recurringEventId){
+      present.add(e.recurringEventId);
+      if(t) remoteTime.set(e.recurringEventId, t);
+      if(cid) remoteCat.set(e.recurringEventId, cid);
+      if(e.calName) remoteCal.set(e.recurringEventId, e.calName);
+    }
   });
   const day = state.days[k];
   let changed = false;
@@ -604,16 +608,18 @@ async function gcalReconcileDay(k){
     const evId = it.gcalEventId;
     if(evId && !seen.has(evId) && !gcalRecentlyMut(evId)){
       const patch = {};
-      const t = remoteTime.get(evId), cid = remoteCat.get(evId);
+      const t = remoteTime.get(evId), cid = remoteCat.get(evId), cn = remoteCal.get(evId);
       if(t && t!==it.gcalTime) patch.gcalTime = t;
       if(cid && cid!==it.type) patch.type = cid;   // description is the source of truth for the category
+      if(cn && !it.gcalCalName) patch.gcalCalName = cn;   // backfill items logged before the cue existed
       if(Object.keys(patch).length){ seen.add(evId); gcalSyncLinks(evId, patch); changed = true; }
     }
     /* items logged FROM an external event (gcalEvId): local copy only */
     if(it.gcalEvId && !gcalRecentlyMut(it.gcalEvId)){
-      const cid = remoteCat.get(it.gcalEvId), t2 = remoteTime.get(it.gcalEvId);
+      const cid = remoteCat.get(it.gcalEvId), t2 = remoteTime.get(it.gcalEvId), cn2 = remoteCal.get(it.gcalEvId);
       if(cid && cid!==it.type){ it.type = cid; changed = true; }
       if(t2 && t2!==it.gcalTime){ it.gcalTime = t2; changed = true; }
+      if(cn2 && !it.gcalCalName){ it.gcalCalName = cn2; changed = true; }
     }
   });
   const gone = new Map();   // evId -> calId (candidates only — verified below)
